@@ -1,105 +1,96 @@
 # org-table-widget
 
-Display Org tables as responsive, pixel-aligned widgets inside ordinary
-Org buffers.
+Display Org tables as responsive, pixel-aligned widgets inside ordinary Org
+buffers, powered by [TextUI](https://github.com/yibie/textui).
 
-Org aligns tables with padding characters, which only works when every
-character has the same width.  CJK text, emoji, inline code and a
-`fixed-pitch` face that differs from `default` all break that
-assumption, and a long cell pushes the whole row off the window edge.
-`org-table-widget-mode` lays each table out in pixels instead:
+- Align mixed CJK, Latin text, emoji and inline code using pixel widths.
+- Wrap long cells and reflow after window resizing or text scaling.
+- Preserve Org cell faces and links; support `<l>`, `<c>` and `<r>` alignment,
+  horizontal separators, Unicode/ASCII borders and alternating row backgrounds.
+- Hide alignment and column-group declaration rows from the rendered table.
 
-- columns stay aligned across Chinese, Japanese, Korean, Latin text,
-  emoji (including flags and ZWJ sequences) and inline code;
-- long cells wrap inside their column; column widths come from each
-  column's longest unbreakable token, so a short label keeps its width
-  beside a paragraph-sized cell;
-- the table reflows when the window width or text scale changes,
-  debounced so dragging a frame edge triggers one relayout;
-- `|---|` rules inside the table become group separators, alignment
-  cookies (`<l>`, `<c>`, `<r>`) set column alignment, and cookie rows are
-  hidden;
-- links, emphasis and code inside cells keep the faces Org gives them.
-
-The buffer text is never touched.  Each table is covered by an overlay
-whose `before-string` holds the laid-out widget, so `org-element`,
-export, `#+TBLFM` evaluation and Babel keep seeing the original table.
-Moving point into a table reveals its source for ordinary `org-table`
-editing; moving point out lays it out again.
-
-Layout is provided by [TextUI](https://github.com/yibie/textui), which
-lays out block widgets inside ordinary Emacs buffers.
+Rendering uses overlays, leaving the source table intact for Org editing,
+export, formulas and Babel. Moving point into a table reveals its source;
+moving out renders it again.
 
 ## Requirements
 
-- Emacs 29.1 or newer, running on a graphical display (pixel
-  measurement needs `window-text-pixel-size`).
-- Org 9.6 or newer.
-- TextUI 0.8.0 or newer.
+Emacs **29.1+**, Org **9.6+**, [TextUI **0.8.0+**](https://github.com/yibie/textui),
+and a **graphical Emacs frame** for rendered widgets. In a terminal, the mode
+can be enabled, but automatic rendering is skipped and tables stay as editable
+Org source.
 
 ## Installation
 
-```elisp
-(use-package org-table-widget
-  :straight (:type git :host github :repo "yibie/org-table-widget")
-  :hook (org-mode . org-table-widget-mode))
-```
-
-Or add the directory to `load-path`, `(require 'org-table-widget)` and
-run `M-x org-table-widget-mode` in an Org buffer.
-
-## Commands
-
-| Command | Purpose |
-|---|---|
-| `org-table-widget-mode` | Toggle widgets for every table in the buffer |
-| `org-table-widget-refresh` | Lay every table out again |
-| `org-table-widget-toggle` | Show or hide the widget for the table at point |
-
-## Options
-
-| Option | Default | Purpose |
-|---|---|---|
-| `org-table-widget-use-unicode-borders` | `t` | Box-drawing borders; `nil` uses ASCII |
-| `org-table-widget-zebra-stripe` | `t` | Alternate data-row backgrounds |
-| `org-table-widget-wrap-columns` | `t` | Wrap cells to fit the window; `nil` uses natural widths |
-| `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window width a table may use |
-| `org-table-widget-relayout-delay` | `0.15` | Idle seconds after a resize before relaying out; `0` relays out immediately |
-| `org-table-widget-reveal-on-point` | `t` | Show the source while point is inside a table |
-| `org-table-widget-cell-properties` | faces, `invisible`, … | Text properties copied from the buffer into cells |
-
-Faces: `org-table-widget-header`, `org-table-widget-border`,
-`org-table-widget-zebra`.
-
-## Fonts
-
-Widgets are measured with the `fixed-pitch` face.  If your
-configuration sets only the `default` font and leaves `fixed-pitch` on
-its stock family, the two have different character widths; the widget
-still fits the window, but keeping both on the same family gives the
-best result:
+Not on MELPA yet. Install TextUI first, then this package:
 
 ```elisp
-(set-face-attribute 'default nil :family "Iosevka")
-(set-face-attribute 'fixed-pitch nil :family "Iosevka")
+(require 'package-vc)
+(package-vc-install "https://github.com/yibie/textui")
+(package-vc-install "https://github.com/yibie/org-table-widget" "v0.1.0")
 ```
 
-## Development
+Alternatively, clone both repositories and add their directories manually:
+
+```elisp
+(add-to-list 'load-path "/path/to/textui")
+(add-to-list 'load-path "/path/to/org-table-widget")
+(require 'org-table-widget)
+```
+
+## Usage
+
+Enable automatically in Org buffers:
+
+```elisp
+(require 'org-table-widget)
+(add-hook 'org-mode-hook #'org-table-widget-mode)
+```
+
+Use `M-x org-table-widget-mode` to enable or disable it in the current buffer,
+`M-x org-table-widget-toggle` to reveal or render the table at point, and
+`M-x org-table-widget-refresh` to refresh the buffer's tables.
+
+### Options
+
+Customize with `M-x customize-group RET org-table-widget RET`.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `org-table-widget-use-unicode-borders` | `t` | Use Unicode borders; nil selects ASCII. |
+| `org-table-widget-zebra-stripe` | `t` | Alternate data-row backgrounds. |
+| `org-table-widget-wrap-columns` | `t` | Wrap cell content; nil uses natural widths. |
+| `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window body width available to the table. |
+| `org-table-widget-relayout-delay` | `0.15` | Idle seconds before resize relayout; zero or negative means immediate. |
+| `org-table-widget-reveal-on-point` | `t` | Reveal source when point enters a table. |
+| `org-table-widget-cell-properties` | `(face font-lock-face invisible display mouse-face help-echo keymap follow-link htmlize-link org-emphasis)` | Text properties retained in rendered cells. |
+
+## Status
+
+**0.1.0 is an early release.** Known limitations:
+
+- Org width cookies are ignored.
+- Very wide tables can overflow the window when minimum column widths do not fit.
+- Numeric columns are not automatically right-aligned; use an explicit `<r>` cookie.
+- Coexistence with `org-modern` and `valign` is untested.
+
+See [CHANGELOG.md](CHANGELOG.md) for release changes.
+
+## Demos and tests
+
+Browse [demos/](demos/) for example tables, benchmark and visual-check scripts,
+and [demos/REPORT.md](demos/REPORT.md) for measured results and limitations.
+
+With TextUI checked out alongside this repository, run the full ERT suite:
 
 ```sh
+cd /path/to/org-table-widget
 emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
   -l test/org-table-widget-tests.el -l test/org-table-widget-demo-tests.el \
   -f ert-run-tests-batch-and-exit
 ```
 
-`demo.org` holds a multilingual table for trying the mode interactively.
-The [scenario report](demos/REPORT.md) documents the `demos/` fixtures,
-baseline findings, follow-up performance improvements, GUI benchmarks, and
-pixel checks. The expanded ERT suite is green after the Task 03 fixes.
-
-## Relation to md-mode
-
-The pixel layout engine is shared in spirit with
-[md-mode](https://github.com/yibie/md-mode)'s rendered tables, which
-introduced the widget approach for Markdown.  The code is kept
-separate so each package can follow its own format's rules.
+Prefer `--batch` when real pixels are unnecessary. On macOS, the GUI launcher
+`/opt/homebrew/bin/Emacs` (Emacs.app) does not inherit the shell working directory:
+use absolute paths for every `-l`, file name in `--eval`, and log path, or pass
+`--chdir /absolute/path/to/org-table-widget` before loading scripts.
