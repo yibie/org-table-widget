@@ -297,5 +297,24 @@
                                          (should-not (overlay-buffer overlay))
                                          (should-not org-table-widget--overlays))))))
 
+(ert-deftest org-table-widget-parse-column-group-metadata ()
+  (org-table-widget-tests--with-org
+      "| / | < | > | <> | |\n| Name | A | B | C | D |\n|---+---+---+---+---|\n| x | 1 | 2 | 3 | 4 |\n"
+    (let ((table (org-table-widget--parse (point-min) (point-max))))
+      (should (= (plist-get table :header-rows) 1))
+      (should (= (length (plist-get table :rows)) 3))
+      (should (equal (caar (plist-get table :rows)) "Name")))))
+
+(ert-deftest org-table-widget-parse-metadata-only-is-empty ()
+  (dolist (source '("| / | <> | |\n"
+                    "|---+---|\n| / | <> |\n| <l> | <r> |\n|---+---|\n"))
+    (org-table-widget-tests--with-org source
+      (should-not (org-table-widget--parse (point-min) (point-max))))))
+
+(ert-deftest org-table-widget-parse-slash-data-is-not-metadata ()
+  (org-table-widget-tests--with-org "| / | ordinary data |\n"
+    (should (equal (caar (plist-get (org-table-widget--parse
+                                    (point-min) (point-max)) :rows)) "/"))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

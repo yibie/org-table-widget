@@ -596,6 +596,12 @@ TABLE is a plist with :rows (cell lists or `hline'), :alignments and
                           (string-match-p org-table-widget--cookie-regexp cell)))
                     cells)))
 
+(defun org-table-widget--group-row-p (cells)
+  "Return non-nil when CELLS declare Org column groups."
+  (and (equal (car cells) "/")
+       (seq-every-p (lambda (cell) (member cell '("" "<" ">" "<>")))
+                    (cdr cells))))
+
 (defun org-table-widget--clean-cell (text)
   "Return TEXT trimmed, keeping only `org-table-widget-cell-properties'."
   (let ((cell (string-trim text)))
@@ -646,9 +652,10 @@ the region holds no data rows."
           (push 'hline rows))
          ((looking-at-p org-table-dataline-regexp)
           (let ((cells (org-table-widget--line-cells)))
-            (if (org-table-widget--cookie-row-p cells)
-                (setq cookie-row cells)
-              (push cells rows)))))
+            (cond
+             ((org-table-widget--cookie-row-p cells) (setq cookie-row cells))
+             ((org-table-widget--group-row-p cells))
+             (t (push cells rows))))))
         (forward-line 1)))
     (setq rows (nreverse rows))
     ;; Drop leading and trailing rules and merge adjacent ones.

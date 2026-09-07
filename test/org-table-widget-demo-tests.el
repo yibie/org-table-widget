@@ -2,7 +2,7 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;; Commentary:
 ;; Load after org-table-widget-tests.el, then run all ERT tests.
-;; Known rendering failures deliberately remain failures, not expected failures.
+;; Check content-row counts independently of normalized rules and metadata.
 ;;; Code:
 (require 'ert)
 (require 'cl-lib)
@@ -12,6 +12,24 @@
   (expand-file-name "../demos" (file-name-directory
                                 (or load-file-name buffer-file-name)))
   "Directory containing scenario fixtures.")
+
+(defun org-table-widget-demo-tests--content-rows (beg)
+  "Count non-rule, non-metadata rows in the Org source table at BEG."
+  (save-excursion
+    (goto-char beg)
+    (cl-count-if
+     (lambda (row)
+       (and (listp row)
+            (not (and (equal (car row) "/")
+                      (seq-every-p (lambda (cell) (member cell '("" "<" ">" "<>")))
+                                   (cdr row))))
+            (not (and (seq-some (lambda (cell) (not (string-empty-p cell))) row)
+                      (seq-every-p
+                       (lambda (cell)
+                         (or (string-empty-p cell)
+                             (string-match-p "\\`<[lrc]?[0-9]*>\\'" cell)))
+                       row)))))
+     (org-table-to-lisp))))
 
 (defun org-table-widget-demo-tests--check (file)
   "Check table overlays and buffer invariants for demo FILE."
@@ -51,12 +69,11 @@
                           problems)))
                 (dolist (overlay org-table-widget--overlays)
                   (let* ((beg (overlay-start overlay))
-                         (end (overlay-end overlay))
-                         (source-rows (count-lines beg end))
+                         (source-rows (org-table-widget-demo-tests--content-rows beg))
                          (rendered (overlay-get overlay 'before-string))
                          (lines (length (split-string
                                          (string-trim-right rendered "\n") "\n"))))
-                    (unless (>= lines source-rows)
+                    (unless (>= lines (+ source-rows 2))
                       (push (list :line (line-number-at-pos beg)
                                   :source-rows source-rows :rendered-lines lines)
                             problems))))
