@@ -5,3 +5,6 @@
 # Generated scenario artifacts
 demos/huge.org
 demos/shots/
+demos/*.log
+demos/*.sexp
+demos/task03/

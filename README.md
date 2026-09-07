@@ -76,10 +76,33 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 
 See [CHANGELOG.md](CHANGELOG.md) for release changes.
 
+## Performance
+
+Measured with `demos/bench.el` on macOS, Apple M4 Max,
+Emacs 31.0.91 GUI, with Iosevka at height 150. Times are seconds.
+
+| Table | First display | Refresh | Resize relayout | Leave table |
+| --- | ---: | ---: | ---: | ---: |
+| 500 × 8 (`large.org`) | 0.355002 | 0.007237 | 0.279066 | 0.007163 |
+| 3000 × 6 (generated `huge.org`) | 1.339867 | 0.034297 | 1.052924 | 0.034108 |
+
+Refresh and leave-table timings reuse unchanged content; edits require rebuilding.
+These are single-run measurements on this machine, not guarantees for other setups.
+
 ## Demos and tests
 
-Browse [demos/](demos/) for example tables, benchmark and visual-check scripts,
-and [demos/REPORT.md](demos/REPORT.md) for measured results and limitations.
+Browse [demos/](demos/) for example tables, benchmarks and visual checks.
+With TextUI checked out alongside this repository, generate the benchmark inputs
+(including the untracked `huge.org`), then run each GUI script in a separate Emacs:
+
+```sh
+emacs -Q --batch -l /absolute/path/to/org-table-widget/demos/gen-large.el -f org-table-widget-demo-generate
+emacs -Q -l /absolute/path/to/org-table-widget/demos/bench.el
+emacs -Q -l /absolute/path/to/org-table-widget/demos/visual-check.el
+```
+
+Replace `/absolute/path/to` with your checkout's parent directory. Scripts write
+ignored logs/profiles under `demos/` and screenshots under `demos/shots/`, then exit.
 
 With TextUI checked out alongside this repository, run the full ERT suite:
 
@@ -90,7 +113,7 @@ emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
   -f ert-run-tests-batch-and-exit
 ```
 
-Prefer `--batch` when real pixels are unnecessary. On macOS, the GUI launcher
-`/opt/homebrew/bin/Emacs` (Emacs.app) does not inherit the shell working directory:
-use absolute paths for every `-l`, file name in `--eval`, and log path, or pass
-`--chdir /absolute/path/to/org-table-widget` before loading scripts.
+Prefer `--batch` when real pixels are unnecessary. On macOS, the Emacs.app
+launcher ignores the shell working directory, hence the absolute paths above.
+For GUI invocations, use absolute paths for every `-l`, file name in `--eval`,
+and log path, or pass `--chdir /absolute/path/to/org-table-widget` before loading scripts.
