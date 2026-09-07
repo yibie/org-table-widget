@@ -123,7 +123,7 @@ line prefixes, fontification state or private markers."
   "X limit for `window-text-pixel-size' so wide cells are not clipped.")
 
 (defvar-local org-table-widget--char-pixel-cache nil
-  "Cons cell (FONT-WIDTH . SPACE-PIXELS) caching the width of a space.")
+  "Cons cell (FONT-SIGNATURE . SPACE-PIXELS) caching the width of a space.")
 
 (defvar-local org-table-widget--measure-cache nil
   "Cons cell (VALIDITY . HASH-TABLE) caching string measurements.
@@ -131,6 +131,18 @@ VALIDITY records the fonts the measurements were taken with.")
 
 (defconst org-table-widget--measure-cache-limit 50000
   "Number of cached measurements after which the cache is rebuilt.")
+
+(define-hash-table-test 'org-table-widget--string-properties
+  #'equal-including-properties #'sxhash-equal-including-properties)
+
+(defun org-table-widget--font-signature (window)
+  "Return the font and face-remapping state affecting layout in WINDOW."
+  (with-current-buffer (window-buffer window)
+    (let ((frame (window-frame window)))
+      (list (ignore-errors (window-font-width window))
+            (ignore-errors (face-font 'default frame))
+            (ignore-errors (face-font 'fixed-pitch frame))
+            (copy-tree face-remapping-alist)))))
 
 (defun org-table-widget--measure-string (str window)
   "Return the pixel width of STR rendered at the end of WINDOW's buffer.
@@ -166,7 +178,7 @@ STR is pinned to `fixed-pitch' so the result does not depend on
 (defun org-table-widget--char-pixel-width (window)
   "Return the pixel width of one space in WINDOW, cached per buffer."
   (with-current-buffer (window-buffer window)
-    (let ((fw (ignore-errors (window-font-width window))))
+    (let ((fw (org-table-widget--font-signature window)))
       (if (and org-table-widget--char-pixel-cache
                (equal fw (car org-table-widget--char-pixel-cache)))
           (cdr org-table-widget--char-pixel-cache)
@@ -179,30 +191,31 @@ STR is pinned to `fixed-pitch' so the result does not depend on
 The cache survives relayouts and is dropped when the window font or
 the `fixed-pitch' font changes."
   (with-current-buffer (window-buffer window)
-    (let ((validity (list (ignore-errors (window-font-width window))
-                          (ignore-errors (face-font 'fixed-pitch)))))
+    (let ((validity (org-table-widget--font-signature window)))
       (unless (and org-table-widget--measure-cache
                    (equal (car org-table-widget--measure-cache) validity)
                    (< (hash-table-count (cdr org-table-widget--measure-cache))
                       org-table-widget--measure-cache-limit))
         (setq org-table-widget--measure-cache
-              (cons validity (make-hash-table :test 'equal))))
+              (cons validity (make-hash-table
+                              :test 'org-table-widget--string-properties))))
       (cdr org-table-widget--measure-cache))))
 
 (defmacro org-table-widget--with-cached-measurements (window &rest body)
   "Run BODY with `org-table-widget--measure-string' cached for WINDOW."
-  (declare (indent 1))
+  (declare (indent 1) (debug (form body)))
   (let ((measure (make-symbol "measure"))
         (table (make-symbol "table")))
     `(let* ((,measure (symbol-function 'org-table-widget--measure-string))
             (,table (org-table-widget--measurements ,window)))
        (cl-letf (((symbol-function 'org-table-widget--measure-string)
                   (lambda (string destination)
-                    (let* ((key (prin1-to-string string))
-                           (cached (gethash key ,table 'missing)))
+                    (let ((cached (gethash string ,table 'missing)))
                       (if (eq cached 'missing)
-                          (puthash key (funcall ,measure string destination)
-                                   ,table)
+                          ;; Own the key: later property edits must not change
+                          ;; its hash or overwrite a previously measured style.
+                          (puthash (copy-sequence string)
+                                   (funcall ,measure string destination) ,table)
                         cached)))))
          ,@body))))
 

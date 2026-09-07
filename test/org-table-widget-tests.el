@@ -316,5 +316,37 @@
     (should (equal (caar (plist-get (org-table-widget--parse
                                     (point-min) (point-max)) :rows)) "/"))))
 
+(ert-deftest org-table-widget-measure-cache-keeps-properties-and-owns-keys ()
+  (with-temp-buffer
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((calls 0)
+            (plain "text")
+            (styled (propertize "text" 'face 'bold)))
+        (cl-letf (((symbol-function 'org-table-widget--measure-string)
+                   (lambda (string _window)
+                     (cl-incf calls)
+                     (if (get-text-property 0 'face string) 20 10))))
+          (org-table-widget--with-cached-measurements (selected-window)
+            (should (= 10 (org-table-widget--measure-string plain nil)))
+            (should (= 20 (org-table-widget--measure-string styled nil)))
+            (should (= 20 (org-table-widget--measure-string (copy-sequence styled) nil)))
+            (should (= calls 2))
+            (remove-text-properties 0 4 '(face nil) styled)
+            (should (= 10 (org-table-widget--measure-string styled nil)))
+            (let ((before calls))
+              (should (= 20 (org-table-widget--measure-string
+                             (propertize "text" 'face 'bold) nil)))
+              (should (= calls before)))))))))
+
+(ert-deftest org-table-widget-measure-cache-invalidates-on-font-remapping ()
+  (with-temp-buffer
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((cache (org-table-widget--measurements (selected-window))))
+        (should (eq cache (org-table-widget--measurements (selected-window))))
+        (setq-local face-remapping-alist '((default (:height 1.2) default)))
+        (should-not (eq cache (org-table-widget--measurements (selected-window))))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

@@ -1,0 +1,88 @@
+Emacs=31.0.91 graphic=t font="-*-Iosevka-regular-normal-normal-*-15-*-*-*-m-0-iso10646-1" gc-cons-threshold=800000 time=Mon Sep  7 01:39:05 2026
+BEGIN large.org mode=nil body=1400px
+cold=(0.006366 0 0.0) memory-bytes=91575 overlays=0
+gc-before=((conses 16 248905 9783) (symbols 48 21626 4) (strings 32 66834 2482) (string-bytes 1 2390621) (vectors 16 31829) (vector-slots 8 412856 11073) (floats 8 299 1) (intervals 56 46 0) (buffers 1064 7))
+gc-after=((conses 16 251096 7592) (symbols 48 21626 4) (strings 32 66832 2453) (string-bytes 1 2390628) (vectors 16 31830) (vector-slots 8 412860 11069) (floats 8 302 2) (intervals 56 1055 7) (buffers 1064 7))
+STATE after-cold point=1 min=1 max=52621 tables=1 overlays=0
+warm=(0.006246 0 0.0)
+STATE after-warm point=1 tables=1 overlays=0
+resize=(0.327321 0 0.0) body=1100px
+STATE after-resize point=1 tables=1 overlays=0
+enter=(0.0 0 0.0)
+leave=(0.0 0 0.0)
+STATE after-leave point=1 tables=1 overlays=0
+redisplay5=(0.089224 0 0.0)
+scroll20=(0.008281 0 0.0)
+scroll-end-of-buffer=6
+END large.org mode=nil modified=nil
+BEGIN large.org mode=t body=1400px
+cold=(1.504271 69 1.008991) memory-bytes=10086128 overlays=1
+gc-before=((conses 16 254681 18221) (symbols 48 21765 1) (strings 32 66980 2367) (string-bytes 1 2392938) (vectors 16 33406) (vector-slots 8 436431 18009) (floats 8 299 28) (intervals 56 47 32) (buffers 1064 7))
+gc-after=((conses 16 548109 180250) (symbols 48 21765 1) (strings 32 79915 2979) (string-bytes 1 2993658) (vectors 16 34751) (vector-slots 8 441839 11068) (floats 8 302 52) (intervals 56 77044 2531) (buffers 1064 7))
+STATE after-cold point=1 min=1 max=52621 tables=1 overlays=1
+warm=(1.110483 47 0.7776019999999999)
+STATE after-warm point=1 tables=1 overlays=1
+resize=(1.387398 55 0.9515800000000003) body=1100px
+STATE after-resize point=1 tables=1 overlays=1
+enter=(6e-06 0 0.0)
+leave=(1.40874 70 1.0197649999999996)
+STATE after-leave point=1 tables=1 overlays=1
+redisplay5=(0.010174 0 0.0)
+scroll20=(0.046475 1 0.016831999999999958)
+scroll-end-of-buffer=0
+END large.org mode=t modified=nil
+BEGIN huge.org mode=nil body=1400px
+cold=(0.029897 0 0.0) memory-bytes=531520 overlays=0
+gc-before=((conses 16 461925 180286) (symbols 48 21765 1) (strings 32 66985 2951) (string-bytes 1 2501640) (vectors 16 33541) (vector-slots 8 438983 15968) (floats 8 299 55) (intervals 56 42094 98) (buffers 1064 7))
+gc-after=((conses 16 474116 168095) (symbols 48 21765 1) (strings 32 66983 2767) (string-bytes 1 2501592) (vectors 16 33542) (vector-slots 8 438987 15964) (floats 8 302 52) (intervals 56 48103 5) (buffers 1064 7))
+STATE after-cold point=1 min=1 max=251420 tables=1 overlays=0
+warm=(0.031206 0 0.0)
+STATE after-warm point=1 tables=1 overlays=0
+resize=(0.008179 0 0.0) body=1100px
+STATE after-resize point=1 tables=1 overlays=0
+enter=(1e-06 0 0.0)
+leave=(1e-06 0 0.0)
+STATE after-leave point=1 tables=1 overlays=0
+redisplay5=(0.001364 0 0.0)
+scroll20=(0.008877 0 0.0)
+scroll-end-of-buffer=0
+END huge.org mode=nil modified=nil
+BEGIN huge.org mode=t body=1400px
+cold=(5.186418 202 3.2872470000000007) memory-bytes=24694272 overlays=1
+gc-before=((conses 16 461925 180286) (symbols 48 21765 1) (strings 32 66985 2486) (string-bytes 1 2501636) (vectors 16 33541) (vector-slots 8 438983 14946) (floats 8 299 55) (intervals 56 42094 98) (buffers 1064 7))
+gc-after=((conses 16 1108499 466044) (symbols 48 21765 1) (strings 32 118652 5627) (string-bytes 1 4814564) (vectors 16 34791) (vector-slots 8 442720 9165) (floats 8 302 52) (intervals 56 226610 6832) (buffers 1064 7))
+STATE after-cold point=1 min=1 max=251420 tables=1 overlays=1
+warm=(3.804247 100 2.426396999999999)
+STATE after-warm point=1 tables=1 overlays=1
+resize=(4.64783 112 3.0178420000000017) body=1100px
+STATE after-resize point=1 tables=1 overlays=1
+enter=(8e-06 0 0.0)
+leave=(5.225516 186 3.682618999999999)
+STATE after-leave point=1 tables=1 overlays=1
+redisplay5=(0.876111 0 0.0)
+scroll20=(0.025868 0 0.0)
+scroll-end-of-buffer=0
+END huge.org mode=t modified=nil
+PROFILE self total-weight=1618
+  52.35% Automatic\ GC weight=847
+  19.47% prin1-to-string weight=315
+  7.23% window-text-pixel-size weight=117
+  2.78% concat weight=45
+  2.04% mapconcat weight=33
+  1.98% substring weight=32
+  1.36% let* weight=22
+  1.36% let weight=22
+  0.62% aref weight=10
+  0.56% puthash weight=9
+PROFILE inclusive total-weight=1618
+  52.35% Automatic\ GC weight=847
+  46.42% let* weight=751
+  46.23% let weight=748
+  43.26% if weight=700
+  37.82% while weight=612
+  36.90% setq weight=597
+  33.44% org-table-widget--measure-string weight=541
+  23.30% max weight=377
+  19.47% prin1-to-string weight=315
+  13.84% funcall weight=224
+COMPLETE

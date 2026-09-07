@@ -1,0 +1,2 @@
+graphic=t font="-*-Iosevka-regular-normal-normal-*-15-*-*-*-m-0-iso10646-1"
+(("Latin 123" nil 72) ("Latin 123" bold 72) ("Latin 123" org-link 72) ("Latin 123" (:height 1.5) 72) ("中文 日本語 한국어" nil 136) ("中文 日本語 한국어" bold 136) ("中文 日本語 한국어" org-link 136) ("中文 日本語 한국어" (:height 1.5) 136) ("👨‍👩‍👧‍👦 🇯🇵 café" nil 138) ("👨‍👩‍👧‍👦 🇯🇵 café" bold 138) ("👨‍👩‍👧‍👦 🇯🇵 café" org-link 138) ("👨‍👩‍👧‍👦 🇯🇵 café" (:height 1.5) 138))
