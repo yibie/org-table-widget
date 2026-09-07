@@ -94,9 +94,8 @@ emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
 
 `demo.org` holds a multilingual table for trying the mode interactively.
 The [scenario report](demos/REPORT.md) documents the `demos/` fixtures,
-known failing assertions, GUI benchmarks, and pixel checks. The expanded
-suite deliberately reports the known scenario failures; see the report
-before interpreting a nonzero test exit status.
+baseline findings, follow-up performance improvements, GUI benchmarks, and
+pixel checks. The expanded ERT suite is green after the Task 03 fixes.
 
 ## Relation to md-mode
 

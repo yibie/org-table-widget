@@ -1,5 +1,91 @@
 # Scenario and performance report
 
+## Task 03 results — 列分组与大表格性能（2026-09-07）
+
+**当前状态：42 个 ERT 测试全部通过，8 项性能目标全部达到。** 下方原报告
+保留的是 Task 02 的历史基线；不代表当前仍有两个 ERT 失败。
+
+### 做了什么
+
+1. **列分组行不再显示为表头。** 首格是 `/`，其余格均为 `""`、`<`、`>`、
+   `<>` 的行按元数据跳过；只有元数据和分隔线的表返回 nil。普通 `/` 数据行
+   不会误删。场景测试现在比较“内容行数 + 上下边框”，不再把被合并的分隔线
+   算作丢失的数据。列组的垂直分隔效果暂不实现，留作后续工作。
+2. **测量缓存不再序列化整段文字。** 用 `equal-including-properties` 和
+   `sxhash-equal-including-properties` 注册哈希表比较方式，缓存自己的字符串
+   副本；保留文字属性，避免隐藏链接、display 等属性混用结果。GUI 字体探针
+   中 plain/bold/org-link 的宽度相同：Latin 72px、CJK 136px、emoji/组合字符
+   138px；这不足以推断所有属性或用户字体都不影响宽度，因此没有去掉属性。
+   字体签名同时记录默认/等宽字体及 face remapping，覆盖文字缩放后的失效。
+3. **排版期间临时提高 GC 阈值。** 在完整的单表构建期间将阈值至少设为
+   64 MiB，退出后自动恢复；不改变用户平时的 GC 设置。错误路径也有恢复测试。
+4. **复用整张表的显示结果。** 每张表只保留最近一次 `(key widget before-string)`。
+   key 包含源码哈希、属性哈希、窗口列宽/像素宽度、字体签名及渲染选项。
+   未修改内容的刷新、进入再离开直接复用；文本或属性改变、字体/宽度/选项改变
+   会重建。修改钩子会清缓存；源码已经显示、没有 overlay 时的编辑也受
+   buffer-local after-change hook 保护。关闭模式时清理该缓存和钩子。
+5. **额外修复了测量清理的正文安全问题。** 旧代码按测量后的 point 删除临时文字。
+   用“测量函数移动 point”的测试可确定复现正文被删。现在记住临时文字的精确
+   起止位置，用 `unwind-protect` 清理，测量报错也不留下临时文字或修改撤销状态。
+   这项修复单独提交，没有把它藏在性能改动里。
+
+### 每一步的实测（秒，source-loaded）
+
+与 Task 02 使用相同 GUI、字体、生成文件和计时操作。基线来自 `47e1321` 的
+记录。每步原始日志、GC 次数/时间和 CPU profile 都保存在 [task03/](task03/)。
+“离开”测的是**内容没有修改**的进入→离开流程；编辑后仍需重新排版。
+
+| 阶段 | 数据 | 首次显示 | 再刷新 | 缩放重排 | 离开表格 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Task 02 基线 | 500×8 | 1.504271 | 1.110483 | 1.387398 | 1.408740 |
+| Step 1：属性哈希 | 500×8 | 1.184767 | 0.776689 | 1.053070 | 1.124247 |
+| Step 2：临时 GC 阈值 | 500×8 | 0.355083 | 0.201497 | 0.280150 | 0.230879 |
+| Step 3：整表缓存 + 测量安全修复 | 500×8 | **0.355002** | **0.007237** | **0.279066** | **0.007163** |
+| Task 02 基线 | 3000×6 | 5.186418 | 3.804247 | 4.647830 | 5.225516 |
+| Step 1：属性哈希 | 3000×6 | 3.816223 | 2.642900 | 3.850425 | 3.897515 |
+| Step 2：临时 GC 阈值 | 3000×6 | 1.327675 | 0.866934 | 1.060281 | 0.946408 |
+| Step 3：整表缓存 + 测量安全修复 | 3000×6 | **1.339867** | **0.034297** | **1.052924** | **0.034108** |
+
+| 数据 | 首次显示目标 | 刷新目标 | 缩放目标 | 离开目标 | 结果 |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 500×8 | <0.4s | <0.15s | <0.4s | <0.15s | **4/4 达到** |
+| 3000×6 | <2.0s | <0.6s | <2.0s | <0.6s | **4/4 达到** |
+
+GC 次数（首次显示 / 刷新 / 缩放 / 离开）：
+
+- 500×8：基线 `69 / 47 / 55 / 70` → Step 1 `59 / 38 / 46 / 57`
+  → Step 2 `2 / 2 / 2 / 2` → 最终 `2 / 0 / 2 / 0`。
+- 3000×6：基线 `202 / 100 / 112 / 186` → Step 1 `162 / 78 / 90 / 140`
+  → Step 2 `7 / 6 / 7 / 7` → 最终 `7 / 0 / 7 / 0`。
+
+**没有未达标项，因此没有继续做 Step 4 的额外热点优化。** `bench.el` 自带的
+CPU profile 仍然按步骤保存，便于以后比较。数字是单机单次有效测量，不是延迟
+分位数或对所有机器的承诺；500 行首次显示离 0.4s 上限比较近。
+
+### 数据有效性与验证
+
+调试时出现过一次可访问范围异常变小的结果和未完成的 GUI 运行；这些数字均已
+排除，没有拿“小了的表”当作提速。随后加入了计时区间之外的正文哈希、完整
+字符数和 narrowing 检查，并修复了上述可确定复现的测量清理问题。最终按指定
+绝对路径命令单独运行 GUI，无诊断 advice；四种 OFF/ON 组合的所有检查点均为
+`source-unchanged=t`，500/3000 行分别保持 52,620/251,419 个字符，未发生 narrowing。
+ON 状态在首次显示、刷新、缩放及离开后均为一个完整表、一个 overlay。
+
+- 完整 ERT：**42/42，通过**，包括元数据-only、普通 `/` 数据、缓存键属性、
+  字体失效、无编辑复用、源码编辑/位置移动/属性改变失效、GC 恢复、测量 point
+  变化和错误清理；原有正文/undo/modified/overlay 生命周期测试继续通过。
+- 主文件 `byte-compile-error-on-warn` 编译、checkdoc、package-lint 均干净；
+  编译产物已删除，没有修改 TextUI、没有新依赖。
+- 指定 `visual-check.el`：**36 组检查，0 个边框错位，4 个已知宽度溢出**。
+  链接隐藏和折叠检查继续通过。截图未查看，仍被 gitignore。
+- 四处宽度溢出仍在原来的 30 列/12 列表，属于明确排除在本次范围外的问题。
+
+运行命令见本报告末尾 **How to run**：GUI 必须使用绝对路径或 `--chdir`，
+不需要真实像素的检查用 batch。当前完整 ERT 命令应当退出 0。
+
+---
+
+
 Run date: 2026-09-07. Renderer tested: commit `4c368dc`, unchanged by this task.
 Environment: Emacs 31.0.91, macOS 27.0 (26A5388g), Apple M4 Max, 128 GiB RAM.
 Both `default` and `fixed-pitch` were set to Iosevka, height 150. TextUI 0.8.0
@@ -253,8 +339,9 @@ cd /Users/chenyibin/Documents/emacs/package/org-table-widget
   -l test/org-table-widget-demo-tests.el -f ert-run-tests-batch-and-exit
 ```
 
-The current combined ERT command exits nonzero for the two documented
-failures. Neither is silently converted to an expected failure.
+The Task 02 baseline exited nonzero for the two failures documented above.
+Task 03 fixes the parser and corrects the row-count invariant; the current
+combined ERT command passes all 42 tests and exits zero.
 
 Run the GUI scripts **one at a time**, without moving point or interacting
 with their temporary Emacs windows during measurement:

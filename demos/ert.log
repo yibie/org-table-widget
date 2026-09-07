@@ -1,106 +1,45 @@
-Running 33 tests (2026-09-07 01:49:05-0700, selector ‘t’)
-   passed   1/33  org-table-widget-cells-keep-faces-and-drop-other-properties (0.483662 sec)
-   passed   2/33  org-table-widget-demo-adjacent-and-nested (0.023177 sec)
-   passed   3/33  org-table-widget-demo-alignment-cookies (0.003599 sec)
-Test org-table-widget-demo-column-groups-are-metadata backtrace:
-  ert-fail(((should (= (plist-get table :header-rows) 1)) :form (= 2 1
-  (if (unwind-protect (setq value-368 (apply fn-366 args-367)) (setq f
-  (let (form-description-370) (if (unwind-protect (setq value-368 (app
-  (let ((value-368 'ert-form-evaluation-aborted-369)) (let (form-descr
-  (let* ((fn-366 #'=) (args-367 (condition-case err (list (plist-get t
-  (let* ((bounds (nth 1 (org-table-widget--tables))) (table (org-table
-  (progn (insert-file-contents (expand-file-name "groups-and-rules.org
-  (unwind-protect (progn (insert-file-contents (expand-file-name "grou
-  (save-current-buffer (set-buffer temp-buffer) (unwind-protect (progn
-  (let ((temp-buffer (generate-new-buffer " *temp*" t))) (save-current
-  #f(lambda () [t] (let ((temp-buffer (generate-new-buffer " *temp*" t
-  #f(compiled-function () #<bytecode -0x1597530d9a387f75>)()
-  handler-bind-1(#f(compiled-function () #<bytecode -0x1597530d9a387f7
-  ert--run-test-internal(#s(ert--test-execution-info :test #s(ert-test
-  ert-run-test(#s(ert-test :name org-table-widget-demo-column-groups-a
-  ert-run-or-rerun-test(#s(ert--stats :selector t :tests ... :test-map
-  ert-run-tests(t #f(compiled-function (event-type &rest event-args) #
-  ert-run-tests-batch(nil)
-  ert-run-tests-batch-and-exit()
-  command-line-1(("-L" "." "-L" "../textui" "-L" "test" "-l" "org-tabl
-  command-line()
-  normal-top-level()
-Test org-table-widget-demo-column-groups-are-metadata condition:
-    (ert-test-failed
-     ((should (= (plist-get table :header-rows) 1)) :form (= 2 1) :value
-      nil))
-   FAILED   4/33  org-table-widget-demo-column-groups-are-metadata (0.000497 sec) at test/org-table-widget-demo-tests.el:88
-   passed   5/33  org-table-widget-demo-editing (0.001478 sec)
-   passed   6/33  org-table-widget-demo-formula-recalculation (0.031501 sec)
-   passed   7/33  org-table-widget-demo-formulas (0.002206 sec)
-Test org-table-widget-demo-groups-and-rules backtrace:
-  ert-fail(((should-not problems) :form problems :value ((:line 4 :sou
-  (if (not (unwind-protect (setq value-359 problems) (setq form-descri
-  (let (form-description-360) (if (not (unwind-protect (setq value-359
-  (let ((value-359 (gensym "ert-form-evaluation-aborted-"))) (let (for
-  (let ((ert--infos (cons (cons "Info: " (format "%s: %S" (file-name-n
-  (progn (fset 'org-table-widget--layout-width vnew) (fset 'display-gr
-  (unwind-protect (progn (fset 'org-table-widget--layout-width vnew) (
-  (let* ((vnew #'(lambda (&rest _) t)) (vnew #'(lambda (_window) 120))
-  (progn (fset 'org-table-widget--pixel-budget vnew) (fset 'org-table-
-  (unwind-protect (progn (fset 'org-table-widget--pixel-budget vnew) (
-  (let* ((vnew #'(lambda (string _window) (org-table-widget-tests--pix
-  (unwind-protect (let* ((vnew #'(lambda (string _window) (org-table-w
-  (let* ((before (buffer-substring-no-properties (point-min) (point-ma
-  (progn (switch-to-buffer (current-buffer)) (let* ((before (buffer-su
-  (unwind-protect (progn (switch-to-buffer (current-buffer)) (let* ((b
-  (let ((wconfig (current-window-configuration))) (unwind-protect (pro
-  (progn (insert-file-contents file) (org-mode) (org-fold-show-all) (g
-  (unwind-protect (progn (insert-file-contents file) (org-mode) (org-f
-  (save-current-buffer (set-buffer temp-buffer) (unwind-protect (progn
-  (let ((temp-buffer (generate-new-buffer " *temp*" t))) (save-current
-  org-table-widget-demo-tests--check("/Users/chenyibin/Documents/emacs
-  #f(lambda () [t] (org-table-widget-demo-tests--check "/Users/chenyib
-  #f(compiled-function () #<bytecode -0x1597530d9a387f75>)()
-  handler-bind-1(#f(compiled-function () #<bytecode -0x1597530d9a387f7
-  ert--run-test-internal(#s(ert--test-execution-info :test ... :result
-  ert-run-test(#s(ert-test :name org-table-widget-demo-groups-and-rule
-  ert-run-or-rerun-test(#s(ert--stats :selector t :tests ... :test-map
-  ert-run-tests(t #f(compiled-function (event-type &rest event-args) #
-  ert-run-tests-batch(nil)
-  ert-run-tests-batch-and-exit()
-  command-line-1(("-L" "." "-L" "../textui" "-L" "test" "-l" "org-tabl
-  command-line()
-  normal-top-level()
-Test org-table-widget-demo-groups-and-rules condition:
-    Info: groups-and-rules.org: ((:line 4 :source-rows 8 :rendered-lines 7))
-    (ert-test-failed
-     ((should-not problems) :form problems :value
-      ((:line 4 :source-rows 8 :rendered-lines 7))))
-   FAILED   8/33  org-table-widget-demo-groups-and-rules (0.005064 sec) at test/org-table-widget-demo-tests.el:1
-   passed   9/33  org-table-widget-demo-inline-markup (0.004333 sec)
-   passed  10/33  org-table-widget-demo-large (0.538627 sec)
-   passed  11/33  org-table-widget-demo-mixed-scripts (0.005287 sec)
-   passed  12/33  org-table-widget-demo-narrow-window (0.006714 sec)
-   passed  13/33  org-table-widget-grapheme-clusters (0.000018 sec)
-   passed  14/33  org-table-widget-longest-token-pixels (0.000041 sec)
-   passed  15/33  org-table-widget-minimum-keeps-unbreakable-token (0.000058 sec)
-   passed  16/33  org-table-widget-mode-requires-org (0.000020 sec)
-   passed  17/33  org-table-widget-mode-without-window-keeps-buffer-clean (0.000177 sec)
-   passed  18/33  org-table-widget-overlay-lifecycle (0.001921 sec)
-   passed  19/33  org-table-widget-overlay-preserves-pixel-spaces-and-newlines (0.001115 sec)
-   passed  20/33  org-table-widget-overlay-reveals-on-modification (0.000742 sec)
-   passed  21/33  org-table-widget-parse-alignment-cookies (0.000156 sec)
-   passed  22/33  org-table-widget-parse-drops-outer-and-duplicate-rules (0.000122 sec)
-   passed  23/33  org-table-widget-parse-empty-table-returns-nil (0.000097 sec)
-   passed  24/33  org-table-widget-parse-header-and-groups (0.000126 sec)
-   passed  25/33  org-table-widget-parse-pads-short-rows (0.000114 sec)
-   passed  26/33  org-table-widget-parse-row-without-trailing-pipe (0.000107 sec)
-   passed  27/33  org-table-widget-parse-without-hline-has-no-header (0.000120 sec)
-   passed  28/33  org-table-widget-render-header-face (0.000096 sec)
-   passed  29/33  org-table-widget-render-shape (0.000145 sec)
-   passed  30/33  org-table-widget-render-wraps-long-cells (0.000263 sec)
-   passed  31/33  org-table-widget-right-alignment-pads-left (0.000016 sec)
-   passed  32/33  org-table-widget-short-columns-keep-natural-width (0.000802 sec)
-   passed  33/33  org-table-widget-tables-skips-table-el (0.000238 sec)
+Running 42 tests (2026-09-07 02:23:28-0700, selector ‘t’)
+   passed   1/42  org-table-widget-cells-keep-faces-and-drop-other-properties (0.477301 sec)
+   passed   2/42  org-table-widget-demo-adjacent-and-nested (0.022669 sec)
+   passed   3/42  org-table-widget-demo-alignment-cookies (0.002447 sec)
+   passed   4/42  org-table-widget-demo-column-groups-are-metadata (0.000423 sec)
+   passed   5/42  org-table-widget-demo-editing (0.004936 sec)
+   passed   6/42  org-table-widget-demo-formula-recalculation (0.030215 sec)
+   passed   7/42  org-table-widget-demo-formulas (0.001635 sec)
+   passed   8/42  org-table-widget-demo-groups-and-rules (0.003301 sec)
+   passed   9/42  org-table-widget-demo-inline-markup (0.005175 sec)
+   passed  10/42  org-table-widget-demo-large (0.289797 sec)
+   passed  11/42  org-table-widget-demo-mixed-scripts (0.003002 sec)
+   passed  12/42  org-table-widget-demo-narrow-window (0.004845 sec)
+   passed  13/42  org-table-widget-grapheme-clusters (0.000018 sec)
+   passed  14/42  org-table-widget-layout-gc-threshold-is-dynamically-scoped (0.000302 sec)
+   passed  15/42  org-table-widget-longest-token-pixels (0.000035 sec)
+   passed  16/42  org-table-widget-measure-cache-invalidates-on-font-remapping (0.000024 sec)
+   passed  17/42  org-table-widget-measure-cache-keeps-properties-and-owns-keys (0.000031 sec)
+   passed  18/42  org-table-widget-measure-preserves-source-when-point-moves (0.384440 sec)
+   passed  19/42  org-table-widget-minimum-keeps-unbreakable-token (0.000066 sec)
+   passed  20/42  org-table-widget-mode-requires-org (0.000019 sec)
+   passed  21/42  org-table-widget-mode-without-window-keeps-buffer-clean (0.000217 sec)
+   passed  22/42  org-table-widget-overlay-lifecycle (0.001138 sec)
+   passed  23/42  org-table-widget-overlay-preserves-pixel-spaces-and-newlines (0.000736 sec)
+   passed  24/42  org-table-widget-overlay-reveals-on-modification (0.000540 sec)
+   passed  25/42  org-table-widget-parse-alignment-cookies (0.000155 sec)
+   passed  26/42  org-table-widget-parse-column-group-metadata (0.000147 sec)
+   passed  27/42  org-table-widget-parse-drops-outer-and-duplicate-rules (0.000113 sec)
+   passed  28/42  org-table-widget-parse-empty-table-returns-nil (0.000099 sec)
+   passed  29/42  org-table-widget-parse-header-and-groups (0.000124 sec)
+   passed  30/42  org-table-widget-parse-metadata-only-is-empty (0.000205 sec)
+   passed  31/42  org-table-widget-parse-pads-short-rows (0.000104 sec)
+   passed  32/42  org-table-widget-parse-row-without-trailing-pipe (0.000119 sec)
+   passed  33/42  org-table-widget-parse-slash-data-is-not-metadata (0.000126 sec)
+   passed  34/42  org-table-widget-parse-without-hline-has-no-header (0.000110 sec)
+   passed  35/42  org-table-widget-render-cache-checks-source-properties (0.000180 sec)
+   passed  36/42  org-table-widget-render-cache-reuses-and-invalidates (0.001717 sec)
+   passed  37/42  org-table-widget-render-header-face (0.000088 sec)
+   passed  38/42  org-table-widget-render-shape (0.000150 sec)
+   passed  39/42  org-table-widget-render-wraps-long-cells (0.000258 sec)
+   passed  40/42  org-table-widget-right-alignment-pads-left (0.000015 sec)
+   passed  41/42  org-table-widget-short-columns-keep-natural-width (0.000791 sec)
+   passed  42/42  org-table-widget-tables-skips-table-el (0.000195 sec)
 
-Ran 33 tests, 31 results as expected, 2 unexpected (2026-09-07 01:49:06-0700, 1.231677 sec)
-
-2 unexpected results:
-   FAILED  org-table-widget-demo-column-groups-are-metadata
-   FAILED  org-table-widget-demo-groups-and-rules
+Ran 42 tests, 42 results as expected, 0 unexpected (2026-09-07 02:23:30-0700, 1.238865 sec)

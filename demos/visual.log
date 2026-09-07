@@ -32,8 +32,8 @@ LINE-WIDTHS (248 248 248 248 248 248)
 SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/groups-and-rules-1400.png status=0 exists=t
 TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=7 borders=((top . 64) (header . 64) (first-data . 64) (last-data . 64) (bottom . 64)) max-width=72
 LINE-WIDTHS (72 72 72 72 72 72 72)
-TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 2 :line 13 :hidden nil :header-rows 2) body=1400px lines=6 borders=((top . 192) (header . 192) (first-data . 192) (last-data . 192) (bottom . 192)) max-width=200
-LINE-WIDTHS (200 200 200 200 200 200)
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 2 :line 13 :hidden nil :header-rows 1) body=1400px lines=5 borders=((top . 185) (header . 185) (first-data . 185) (last-data . 185) (bottom . 185)) max-width=193
+LINE-WIDTHS (193 193 193 193 193)
 TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 3 :line 18 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 112) (header . 112) (first-data . 112) (last-data . 112) (bottom . 112)) max-width=120
 LINE-WIDTHS (120 120 120 120 120 120)
 TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 4 :line 23 :hidden nil :header-rows 0) body=1400px lines=3 borders=((top . 176) (first-data . 176) (last-data . 176) (bottom . 176)) max-width=184

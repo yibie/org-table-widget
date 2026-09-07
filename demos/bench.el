@@ -25,6 +25,26 @@
                 (expand-file-name "bench.log" org-table-widget-bench--directory)
                 t 'silent))
 
+(defvar-local org-table-widget-bench--source-hash nil
+  "Hash of the original benchmark buffer characters.")
+
+(defvar-local org-table-widget-bench--source-size nil
+  "Original benchmark buffer size in characters.")
+
+(defun org-table-widget-bench--verify ()
+  "Reject timings if layout changed source text or buffer restrictions."
+  (org-table-widget-bench--log
+   "INVARIANT size=%d expected=%d bounds=(%d %d) source-unchanged=%S"
+   (buffer-size) org-table-widget-bench--source-size (point-min) (point-max)
+   (save-restriction
+     (widen)
+     (equal org-table-widget-bench--source-hash
+            (secure-hash 'sha1 (current-buffer)))))
+  (cl-assert (not (buffer-narrowed-p)))
+  (cl-assert (= (buffer-size) org-table-widget-bench--source-size))
+  (cl-assert (equal org-table-widget-bench--source-hash
+                    (secure-hash 'sha1 (current-buffer)))))
+
 (defun org-table-widget-bench--memory (gc)
   "Return live Lisp bytes estimated from garbage collection data GC."
   (cl-loop for (_type size used . _rest) in gc sum (* size used)))
@@ -37,9 +57,10 @@
          (self (make-hash-table :test 'equal))
          (inclusive (make-hash-table :test 'equal))
          (total 0))
-    (profiler-write-profile profile
-                            (expand-file-name "huge-cpu-profile.sexp"
-                                              org-table-widget-bench--directory))
+    (let ((make-backup-files nil))
+      (profiler-write-profile profile
+                              (expand-file-name "huge-cpu-profile.sexp"
+                                                org-table-widget-bench--directory)))
     (save-window-excursion (profiler-report))
     (maphash
      (lambda (stack count)
@@ -72,6 +93,9 @@
           (goto-char (point-min))
           (set-window-start nil (point-min))
           (set-buffer-modified-p nil)
+          (setq org-table-widget-bench--source-hash
+                (secure-hash 'sha1 (current-buffer))
+                org-table-widget-bench--source-size (buffer-size))
           (org-table-widget-bench--log "BEGIN %s mode=%s body=%dpx" name enabled
                                        (window-body-width nil t))
           (let* ((gc-before (garbage-collect))
@@ -83,6 +107,7 @@
             (org-table-widget-bench--log "cold=%S memory-bytes=%d overlays=%d\ngc-before=%S\ngc-after=%S"
                                          cold delta (length org-table-widget--overlays)
                                          gc-before gc-after))
+          (org-table-widget-bench--verify)
           (org-table-widget-bench--log "STATE after-cold point=%d min=%d max=%d tables=%d overlays=%d"
                                        (point) (point-min) (point-max)
                                        (length (org-table-widget--tables))
@@ -91,6 +116,7 @@
           (org-table-widget-bench--log
            "warm=%S" (benchmark-run 1
                        (if enabled (org-table-widget-refresh) (font-lock-ensure))))
+          (org-table-widget-bench--verify)
           (org-table-widget-bench--log "STATE after-warm point=%d tables=%d overlays=%d"
                                        (point) (length (org-table-widget--tables))
                                        (length org-table-widget--overlays))
@@ -102,6 +128,7 @@
            (benchmark-run 1
              (if enabled (org-table-widget--run-relayout buffer) (redisplay t)))
            (window-body-width nil t))
+          (org-table-widget-bench--verify)
           (org-table-widget-bench--log "STATE after-resize point=%d tables=%d overlays=%d"
                                        (point) (length (org-table-widget--tables))
                                        (length org-table-widget--overlays))
@@ -114,6 +141,7 @@
             (org-table-widget-bench--log
              "leave=%S" (benchmark-run 1
                           (when enabled (org-table-widget--post-command)))))
+          (org-table-widget-bench--verify)
           (org-table-widget-bench--log "STATE after-leave point=%d tables=%d overlays=%d"
                                        (point) (length (org-table-widget--tables))
                                        (length org-table-widget--overlays))

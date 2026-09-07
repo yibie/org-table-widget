@@ -706,6 +706,10 @@ the region holds no data rows."
 (defvar-local org-table-widget--overlays nil
   "Overlays displaying table widgets in the current buffer.")
 
+(defvar-local org-table-widget--render-cache nil
+  "Table start positions mapped to (KEY WIDGET BEFORE-STRING) cache entries.
+Only the most recent rendering of each table is retained.")
+
 (defvar-local org-table-widget--width nil
   "Window width in columns the widgets were last laid out for.")
 
@@ -754,10 +758,16 @@ the region holds no data rows."
   (delete-overlay overlay)
   (setq org-table-widget--overlays (delq overlay org-table-widget--overlays)))
 
+(defun org-table-widget--invalidate-render-cache (&rest _)
+  "Discard rendered tables after edits, including edits to revealed source.
+An edit can move subsequent table starts, so discard all position keys."
+  (setq org-table-widget--render-cache nil))
+
 (defun org-table-widget--modified (overlay &rest _)
   "Reveal the source when the table under OVERLAY is modified."
   (when (overlay-buffer overlay)
     (with-current-buffer (overlay-buffer overlay)
+      (org-table-widget--invalidate-render-cache)
       (org-table-widget--remove-overlay overlay)
       (org-table-widget--schedule-relayout))))
 
@@ -769,27 +779,45 @@ the region holds no data rows."
   (let ((gc-cons-threshold (max gc-cons-threshold
                                 org-table-widget--layout-gc-threshold)))
     (font-lock-ensure beg end)
-    (when-let* ((table (org-table-widget--parse beg end)))
-      (let* ((widget (widget-convert 'org-table-widget :value table
-                                     :window window))
-             (rendered (textui-layout-widget widget width))
-             (overlay (make-overlay beg end nil t nil)))
-        (overlay-put overlay 'org-table-widget widget)
-        ;; Replacement strings ignore nested `display' properties, including
-        ;; our pixel spaces.  A before-string honors them while the empty
-        ;; replacement hides the source, still using one overlay per table.
-        (overlay-put overlay 'display "")
-        (overlay-put overlay 'before-string
-                     (if (eq (char-before end) ?\n)
-                         (concat rendered "\n")
-                       rendered))
-        (overlay-put overlay 'evaporate t)
-        (overlay-put overlay 'modification-hooks
-                     (list #'org-table-widget--modified))
-        (overlay-put overlay 'insert-in-front-hooks
-                     (list #'org-table-widget--modified))
-        (push overlay org-table-widget--overlays)
-        overlay))))
+    (unless org-table-widget--render-cache
+      (setq org-table-widget--render-cache (make-hash-table :test 'eql)))
+    (let* ((key (list (secure-hash 'sha1 (current-buffer) beg end)
+                      ;; Preserve changes to faces, hidden links and other
+                      ;; properties even when source characters stay the same.
+                      (sxhash-equal-including-properties (buffer-substring beg end))
+                      width (window-body-width window t)
+                      (org-table-widget--font-signature window)
+                      org-table-widget-use-unicode-borders
+                      org-table-widget-zebra-stripe org-table-widget-wrap-columns
+                      org-table-widget-max-width-fraction
+                      (copy-sequence org-table-widget-cell-properties)))
+           (cached (gethash beg org-table-widget--render-cache)))
+      (unless (equal key (car cached))
+        (setq cached nil)
+        (when-let* ((table (org-table-widget--parse beg end)))
+          (let* ((widget (widget-convert 'org-table-widget :value table
+                                         :window window))
+                 (rendered (textui-layout-widget widget width)))
+            (setq cached (list key widget
+                               (if (eq (char-before end) ?\n)
+                                   (concat rendered "\n")
+                                 rendered)))))
+        (puthash beg cached org-table-widget--render-cache))
+      (when cached
+        (let ((widget (nth 1 cached))
+              (overlay (make-overlay beg end nil t nil)))
+          (widget-put widget :window window)
+          (overlay-put overlay 'org-table-widget widget)
+          ;; Unlike replacement strings, before-strings honor pixel spaces.
+          (overlay-put overlay 'display "")
+          (overlay-put overlay 'before-string (nth 2 cached))
+          (overlay-put overlay 'evaporate t)
+          (overlay-put overlay 'modification-hooks
+                       (list #'org-table-widget--modified))
+          (overlay-put overlay 'insert-in-front-hooks
+                       (list #'org-table-widget--modified))
+          (push overlay org-table-widget--overlays)
+          overlay)))))
 
 (defun org-table-widget--clear ()
   "Remove every widget overlay from the current buffer."
@@ -914,12 +942,17 @@ displaying its widget.  Moving point into a table reveals its source."
         (unless (require 'textui nil t)
           (setq org-table-widget-mode nil)
           (user-error "Org table widgets require TextUI"))
+        (add-hook 'after-change-functions
+                  #'org-table-widget--invalidate-render-cache nil t)
         (add-hook 'post-command-hook #'org-table-widget--post-command nil t)
         (add-hook 'window-configuration-change-hook
                   #'org-table-widget--window-changed nil t)
         (add-hook 'text-scale-mode-hook #'org-table-widget--schedule-relayout
                   nil t)
         (org-table-widget-refresh))
+    (remove-hook 'after-change-functions
+                 #'org-table-widget--invalidate-render-cache t)
+    (org-table-widget--invalidate-render-cache)
     (remove-hook 'post-command-hook #'org-table-widget--post-command t)
     (remove-hook 'window-configuration-change-hook
                  #'org-table-widget--window-changed t)
