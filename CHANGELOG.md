@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Subtract effective line and wrap prefix widths from table layout budgets,
+  including Org indentation, and invalidate cached layouts when they change.
+
 ## 0.1.0 — First public release
 
 ### Features

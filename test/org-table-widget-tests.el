@@ -467,5 +467,56 @@
             (should (eq undo buffer-undo-list))
             (should-not (buffer-modified-p))))))))
 
+(ert-deftest org-table-widget-prefix-reduces-layout-budgets-and-invalidates-cache ()
+  (require 'textui)
+  (org-table-widget-tests--with-org "| a | b |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((beg (point-min)) (end (point-max)) seen)
+        (org-table-widget-tests--with-pixel-mocks
+          (cl-letf (((symbol-function 'window-font-width) (lambda (&rest _) 10))
+                    ((symbol-function 'font-lock-ensure) #'ignore)
+                    ((symbol-function 'textui-layout-widget)
+                     (lambda (widget width)
+                       (push (list width (widget-get widget :pixel-budget)) seen)
+                       "rendered")))
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(80 800)))
+            (setq-local line-prefix "  ")
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(78 780)))
+            ;; Text properties take precedence over buffer-local variables.
+            (put-text-property beg end 'line-prefix "    ")
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(76 760)))
+            (setq-local wrap-prefix "      ")
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(74 740)))
+            (put-text-property beg end 'wrap-prefix "   ")
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(76 760)))
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (= 5 (length seen)))
+            (setq-local line-prefix nil wrap-prefix nil)
+            (remove-text-properties beg end '(line-prefix nil wrap-prefix nil))
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(80 800)))))))))
+
+(ert-deftest org-table-widget-prefix-measures-display-specifications ()
+  (org-table-widget-tests--with-org "| a |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((display '(space :width (23))) measured)
+        (put-text-property (point-min) (point-max) 'line-prefix
+                           (propertize " " 'display display))
+        (setq-local wrap-prefix '(space :width (17)))
+        (cl-letf (((symbol-function 'org-table-widget--measure-string)
+                   (lambda (string _window)
+                     (push (get-text-property 0 'display string) measured)
+                     (if (equal (car measured) display) 23 17))))
+          (should (= 23 (org-table-widget--prefix-width
+                         (point-min) (selected-window))))
+          (should (equal measured '((space :width (17)) (space :width (23))))))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

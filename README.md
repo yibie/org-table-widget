@@ -71,6 +71,8 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 
 - Org width cookies are ignored.
 - Very wide tables can overflow the window when minimum column widths do not fit.
+  Overflow is truncated when `truncate-lines` is non-nil (the Org default), or
+  wraps when nil; the widget does not change `truncate-lines`.
 - Numeric columns are not automatically right-aligned; use an explicit `<r>` cookie.
 - Coexistence with `org-modern` and `valign` is untested.
 

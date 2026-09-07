@@ -155,7 +155,9 @@ STR is pinned to `fixed-pitch' so the result does not depend on
             (inhibit-modification-hooks t)
             (buffer-undo-list t)
             (modified (buffer-modified-p))
-            (deactivate-mark nil))
+            (deactivate-mark nil)
+            (line-prefix nil)
+            (wrap-prefix nil))
         (save-excursion
           (save-restriction
             (widen)
@@ -218,6 +220,22 @@ the `fixed-pitch' font changes."
                                    (funcall ,measure string destination) ,table)
                         cached)))))
          ,@body))))
+
+(defun org-table-widget--prefix-width (beg window)
+  "Return the wider effective line or wrap prefix at BEG in WINDOW, in pixels."
+  (with-current-buffer (window-buffer window)
+    (apply #'max
+           (mapcar
+            (lambda (property)
+              (let ((prefix (or (get-text-property beg property)
+                                (symbol-value property))))
+                (if prefix
+                    (org-table-widget--measure-string
+                     (if (stringp prefix) prefix
+                       (propertize " " 'display prefix))
+                     window)
+                  0)))
+            '(line-prefix wrap-prefix)))))
 
 (defun org-table-widget--pixel-budget (width window)
   "Return the pixel budget for a table laid out at WIDTH columns in WINDOW.
@@ -524,15 +542,17 @@ BOUNDARY-PIXELS is the uniform advance of every vertical border."
               lines)))
     (string-join (nreverse lines) "\n")))
 
-(defun org-table-widget--render (table window width)
+(defun org-table-widget--render (table window width &optional pixel-budget)
   "Lay TABLE out for WINDOW at WIDTH columns and return the string.
 TABLE is a plist with :rows (cell lists or `hline'), :alignments and
-:header-rows, the number of leading rows before the first `hline'."
+:header-rows, the number of leading rows before the first `hline'.
+PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
   (let* ((rows (plist-get table :rows))
          (alignments (plist-get table :alignments))
          (header-rows (plist-get table :header-rows))
          (columns (length alignments))
-         (pixel-budget (org-table-widget--pixel-budget width window))
+         (pixel-budget (or pixel-budget
+                           (org-table-widget--pixel-budget width window)))
          (boundary-pixels (org-table-widget--boundary-pixels window))
          (widths (org-table-widget--widths rows columns pixel-budget
                                            boundary-pixels window))
@@ -578,7 +598,8 @@ TABLE is a plist with :rows (cell lists or `hline'), :alignments and
                     (get-buffer-window (current-buffer))
                     (selected-window))))
     (org-table-widget--with-cached-measurements window
-      (org-table-widget--render table window width))))
+      (org-table-widget--render table window width
+                                (widget-get widget :pixel-budget)))))
 
 (define-widget 'org-table-widget 'default
   "A width-aware Org table."
@@ -781,11 +802,17 @@ An edit can move subsequent table starts, so discard all position keys."
     (font-lock-ensure beg end)
     (unless org-table-widget--render-cache
       (setq org-table-widget--render-cache (make-hash-table :test 'eql)))
-    (let* ((key (list (secure-hash 'sha1 (current-buffer) beg end)
+    (let* ((prefix-width (org-table-widget--prefix-width beg window))
+           (column-pixels (max 1 (or (ignore-errors (window-font-width window))
+                                     (frame-char-width (window-frame window)))))
+           (columns (max 1 (- width (ceiling prefix-width column-pixels))))
+           (pixel-budget (max 1 (- (org-table-widget--pixel-budget width window)
+                                   prefix-width)))
+           (key (list (secure-hash 'sha1 (current-buffer) beg end)
                       ;; Preserve changes to faces, hidden links and other
                       ;; properties even when source characters stay the same.
                       (sxhash-equal-including-properties (buffer-substring beg end))
-                      width (window-body-width window t)
+                      width (window-body-width window t) prefix-width
                       (org-table-widget--font-signature window)
                       org-table-widget-use-unicode-borders
                       org-table-widget-zebra-stripe org-table-widget-wrap-columns
@@ -796,8 +823,8 @@ An edit can move subsequent table starts, so discard all position keys."
         (setq cached nil)
         (when-let* ((table (org-table-widget--parse beg end)))
           (let* ((widget (widget-convert 'org-table-widget :value table
-                                         :window window))
-                 (rendered (textui-layout-widget widget width)))
+                                         :window window :pixel-budget pixel-budget))
+                 (rendered (textui-layout-widget widget columns)))
             (setq cached (list key widget
                                (if (eq (char-before end) ?\n)
                                    (concat rendered "\n")
