@@ -1,3 +1,7 @@
 *.elc
 .DS_Store
 .scratch/
+
+# Generated scenario artifacts
+demos/huge.org
+demos/shots/

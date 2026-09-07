@@ -1,0 +1,22 @@
+#+title: Alignment and width cookies
+# Check left/center/right. Width cookies are currently ignored by the widget.
+
+| Left | Center | Right | Width only |
+| <l> | <c> | <r> | <10> |
+|------+--------+-------+------------|
+| a | b | 1 | shorter |
+| longer label | centered phrase | 1234.50 | this is much wider than ten |
+|  | - |  | - |
+
+# No cookies: Org normally right-aligns numeric columns when editing.
+| Item | Quantity | Price |
+|------+----------+-------|
+| Apple |        3 |  1.50 |
+| Pear |       12 | 20.00 |
+| Empty |          |     - |
+
+| Narrow cookie | Wide cookie |
+| <10> | <20> |
+|---------------+-------------|
+| abc | abc |
+| abcdefghijklmnopqrstuvwxyz | abcdefghijklmnopqrstuvwxyz |

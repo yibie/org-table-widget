@@ -1,0 +1,102 @@
+Emacs=31.0.91 font="-*-Iosevka-regular-normal-normal-*-15-*-*-*-m-0-iso10646-1" graphic=t
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/adjacent-and-nested-1400.png status=0 exists=t
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 128) (first-data . 128) (last-data . 128) (bottom . 128)) max-width=136
+LINE-WIDTHS (136 136 136 136)
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 2 :line 7 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 136) (first-data . 136) (last-data . 136) (bottom . 136)) max-width=144
+LINE-WIDTHS (144 144 144 144)
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 3 :line 12 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 168) (first-data . 168) (last-data . 168) (bottom . 168)) max-width=176
+LINE-WIDTHS (176 176 176 176)
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 4 :line 19 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 208) (first-data . 208) (last-data . 208) (bottom . 208)) max-width=216
+LINE-WIDTHS (216 216 216 216)
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 5 :line 24 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 136) (first-data . 136) (last-data . 136) (bottom . 136)) max-width=144
+LINE-WIDTHS (144 144 144 144)
+TABLE (:file "adjacent-and-nested.org" :frame 1400 :columns 175 :table 6 :line 42 :hidden nil :header-rows 0) body=1400px lines=4 borders=((top . 152) (first-data . 152) (last-data . 152) (bottom . 152)) max-width=160
+LINE-WIDTHS (160 160 160 160)
+FOLD heading=300 table=366 source-invisible=2 widget-visible=nil
+UNFOLDED screenshot=0 overlays=6
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/alignment-cookies-1400.png status=0 exists=t
+TABLE (:file "alignment-cookies.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=7 borders=((top . 584) (header . 584) (first-data . 584) (last-data . 584) (bottom . 584)) max-width=592
+LINE-WIDTHS (592 592 592 592 592 592 592)
+TABLE (:file "alignment-cookies.org" :frame 1400 :columns 175 :table 2 :line 12 :hidden nil :header-rows 1) body=1400px lines=7 borders=((top . 216) (header . 216) (first-data . 216) (last-data . 216) (bottom . 216)) max-width=224
+LINE-WIDTHS (224 224 224 224 224 224 224)
+TABLE (:file "alignment-cookies.org" :frame 1400 :columns 175 :table 3 :line 18 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 464) (header . 464) (first-data . 464) (last-data . 464) (bottom . 464)) max-width=472
+LINE-WIDTHS (472 472 472 472 472 472)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/editing-1400.png status=0 exists=t
+TABLE (:file "editing.org" :frame 1400 :columns 175 :table 1 :line 10 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 264) (header . 264) (first-data . 264) (last-data . 264) (bottom . 264)) max-width=272
+LINE-WIDTHS (272 272 272 272 272 272)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/formulas-1400.png status=0 exists=t
+TABLE (:file "formulas.org" :frame 1400 :columns 175 :table 1 :line 8 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 240) (header . 240) (first-data . 240) (last-data . 240) (bottom . 240)) max-width=248
+LINE-WIDTHS (248 248 248 248 248 248)
+TABLE (:file "formulas.org" :frame 1400 :columns 175 :table 2 :line 17 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 240) (header . 240) (first-data . 240) (last-data . 240) (bottom . 240)) max-width=248
+LINE-WIDTHS (248 248 248 248 248 248)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/groups-and-rules-1400.png status=0 exists=t
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=7 borders=((top . 64) (header . 64) (first-data . 64) (last-data . 64) (bottom . 64)) max-width=72
+LINE-WIDTHS (72 72 72 72 72 72 72)
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 2 :line 13 :hidden nil :header-rows 2) body=1400px lines=6 borders=((top . 192) (header . 192) (first-data . 192) (last-data . 192) (bottom . 192)) max-width=200
+LINE-WIDTHS (200 200 200 200 200 200)
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 3 :line 18 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 112) (header . 112) (first-data . 112) (last-data . 112) (bottom . 112)) max-width=120
+LINE-WIDTHS (120 120 120 120 120 120)
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 4 :line 23 :hidden nil :header-rows 0) body=1400px lines=3 borders=((top . 176) (first-data . 176) (last-data . 176) (bottom . 176)) max-width=184
+LINE-WIDTHS (184 184 184)
+TABLE (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 5 :line 25 :hidden nil :header-rows 1) body=1400px lines=5 borders=((top . 1440) (header . 1440) (first-data . 1440) (last-data . 1440) (bottom . 1440)) max-width=1448
+LINE-WIDTHS (1448 1448 1448 1448 1448)
+FAIL WIDTH (:file "groups-and-rules.org" :frame 1400 :columns 175 :table 5 :line 25 :hidden nil :header-rows 1) overflow=((1 . 1448) (2 . 1448) (3 . 1448) (4 . 1448) (5 . 1448)) (cl-assertion-failed (null overflow))
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/inline-markup-1400.png status=0 exists=t
+TABLE (:file "inline-markup.org" :frame 1400 :columns 175 :table 1 :line 5 :hidden nil :header-rows 1) body=1400px lines=12 borders=((top . 624) (header . 624) (first-data . 624) (last-data . 624) (bottom . 624)) max-width=632
+LINE-WIDTHS (632 632 632 632 632 632 632 632 632 632 632 632)
+MARKUP link-cell=#("[[https://example.org][short description]]" 0 22 (face (org-link org-table) invisible org-link mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")) 22 23 (face (org-link org-table) invisible org-link mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")) 23 39 (face (org-link org-table) mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")) 39 40 (face (org-link org-table) mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")) 40 41 (face (org-link org-table) invisible org-link mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")) 41 42 (face (org-link org-table) invisible org-link mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "LINK: https://example.org" htmlize-link (:uri "https://example.org")))
+LINK whole=136px description=136px brackets-hidden=t
+MARKUP emphasis=#("*bold* /italic/ _underline_ +strike+" 0 6 (face (bold org-table) org-emphasis t) 6 7 (face org-table) 7 15 (face (italic org-table) org-emphasis t) 15 16 (face org-table) 16 27 (face (underline org-table) org-emphasis t) 27 28 (face org-table) 28 36 (face ((:strike-through t) org-table) org-emphasis t))
+MARKUP literals=#("=verbatim= ~code~" 0 10 (face (org-verbatim org-formula) org-emphasis t) 10 11 (face org-formula) 11 17 (face (org-code org-formula) org-emphasis t))
+MARKUP footnote=#("Reference [fn:1]" 0 10 (face org-table) 10 16 (face (org-footnote org-table) mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse)) help-echo "Footnote reference"))
+MARKUP timestamp=#("<2026-09-07 Sun>" 0 15 (face (org-date org-table) mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse))) 15 16 (face (org-date org-table) mouse-face highlight keymap (keymap (follow-link . mouse-face) (mouse-3 . org-find-file-at-mouse) (mouse-2 . org-open-at-mouse))))
+MARKUP math=#("$x^2$ \\(a+b\\)" 0 13 (face org-table))
+MARKUP entity=#("\\alpha \\beta" 0 12 (face org-table))
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/large-1400.png status=0 exists=t
+TABLE (:file "large.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=941 borders=((top . 1392) (header . 1392) (first-data . 1392) (last-data . 1392) (bottom . 1392)) max-width=1400
+LINE-WIDTHS (1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/mixed-scripts-1400.png status=0 exists=t
+TABLE (:file "mixed-scripts.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=12 borders=((top . 1392) (header . 1392) (first-data . 1392) (last-data . 1392) (bottom . 1392)) max-width=1400
+LINE-WIDTHS (1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400 1400)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/narrow-window-1400.png status=0 exists=t
+TABLE (:file "narrow-window.org" :frame 1400 :columns 175 :table 1 :line 4 :hidden nil :header-rows 1) body=1400px lines=6 borders=((top . 992) (header . 992) (first-data . 992) (last-data . 992) (bottom . 992)) max-width=1000
+LINE-WIDTHS (1000 1000 1000 1000 1000 1000)
+TABLE (:file "narrow-window.org" :frame 1400 :columns 175 :table 2 :line 10 :hidden nil :header-rows 1) body=1400px lines=9 borders=((top . 1392) (header . 1392) (first-data . 1392) (last-data . 1392) (bottom . 1392)) max-width=1400
+LINE-WIDTHS (1400 1400 1400 1400 1400 1400 1400 1400 1400)
+TABLE (:file "narrow-window.org" :frame 1400 :columns 175 :table 3 :line 15 :hidden nil :header-rows 1) body=1400px lines=5 borders=((top . 948) (header . 948) (first-data . 948) (last-data . 948) (bottom . 948)) max-width=956
+LINE-WIDTHS (956 956 956 956 956)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/mixed-scripts-700.png status=0 exists=t
+TABLE (:file "mixed-scripts.org" :frame 700 :columns 87 :table 1 :line 4 :hidden nil :header-rows 1) body=700px lines=14 borders=((top . 688) (header . 688) (first-data . 688) (last-data . 688) (bottom . 688)) max-width=696
+LINE-WIDTHS (696 696 696 696 696 696 696 696 696 696 696 696 696 696)
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/narrow-window-700.png status=0 exists=t
+TABLE (:file "narrow-window.org" :frame 700 :columns 87 :table 1 :line 4 :hidden nil :header-rows 1) body=700px lines=7 borders=((top . 688) (header . 688) (first-data . 688) (last-data . 688) (bottom . 688)) max-width=696
+LINE-WIDTHS (696 696 696 696 696 696 696)
+TABLE (:file "narrow-window.org" :frame 700 :columns 87 :table 2 :line 10 :hidden nil :header-rows 1) body=700px lines=13 borders=((top . 688) (header . 688) (first-data . 688) (last-data . 688) (bottom . 688)) max-width=696
+LINE-WIDTHS (696 696 696 696 696 696 696 696 696 696 696 696 696)
+TABLE (:file "narrow-window.org" :frame 700 :columns 87 :table 3 :line 15 :hidden nil :header-rows 1) body=700px lines=6 borders=((top . 696) (header . 696) (first-data . 696) (last-data . 696) (bottom . 696)) max-width=704
+LINE-WIDTHS (704 704 704 704 704 704)
+FAIL WIDTH (:file "narrow-window.org" :frame 700 :columns 87 :table 3 :line 15 :hidden nil :header-rows 1) overflow=((1 . 704) (2 . 704) (3 . 704) (4 . 704) (5 . 704) (6 . 704)) (cl-assertion-failed (null overflow))
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/narrow-window-480.png status=0 exists=t
+TABLE (:file "narrow-window.org" :frame 480 :columns 60 :table 1 :line 4 :hidden nil :header-rows 1) body=480px lines=9 borders=((top . 472) (header . 472) (first-data . 472) (last-data . 472) (bottom . 472)) max-width=480
+LINE-WIDTHS (480 480 480 480 480 480 480 480 480)
+TABLE (:file "narrow-window.org" :frame 480 :columns 60 :table 2 :line 10 :hidden nil :header-rows 1) body=480px lines=17 borders=((top . 472) (header . 472) (first-data . 472) (last-data . 472) (bottom . 472)) max-width=480
+LINE-WIDTHS (480 480 480 480 480 480 480 480 480 480 480 480 480 480 480 480 480)
+TABLE (:file "narrow-window.org" :frame 480 :columns 60 :table 3 :line 15 :hidden nil :header-rows 1) body=480px lines=6 borders=((top . 696) (header . 696) (first-data . 696) (last-data . 696) (bottom . 696)) max-width=704
+LINE-WIDTHS (704 704 704 704 704 704)
+FAIL WIDTH (:file "narrow-window.org" :frame 480 :columns 60 :table 3 :line 15 :hidden nil :header-rows 1) overflow=((1 . 704) (2 . 704) (3 . 704) (4 . 704) (5 . 704) (6 . 704)) (cl-assertion-failed (null overflow))
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/narrow-window-640.png status=0 exists=t
+TABLE (:file "narrow-window.org" :frame 640 :columns 80 :table 1 :line 4 :hidden nil :header-rows 1) body=640px lines=7 borders=((top . 632) (header . 632) (first-data . 632) (last-data . 632) (bottom . 632)) max-width=640
+LINE-WIDTHS (640 640 640 640 640 640 640)
+TABLE (:file "narrow-window.org" :frame 640 :columns 80 :table 2 :line 10 :hidden nil :header-rows 1) body=640px lines=14 borders=((top . 632) (header . 632) (first-data . 632) (last-data . 632) (bottom . 632)) max-width=640
+LINE-WIDTHS (640 640 640 640 640 640 640 640 640 640 640 640 640 640)
+TABLE (:file "narrow-window.org" :frame 640 :columns 80 :table 3 :line 15 :hidden nil :header-rows 1) body=640px lines=6 borders=((top . 696) (header . 696) (first-data . 696) (last-data . 696) (bottom . 696)) max-width=704
+LINE-WIDTHS (704 704 704 704 704 704)
+FAIL WIDTH (:file "narrow-window.org" :frame 640 :columns 80 :table 3 :line 15 :hidden nil :header-rows 1) overflow=((1 . 704) (2 . 704) (3 . 704) (4 . 704) (5 . 704) (6 . 704)) (cl-assertion-failed (null overflow))
+SCREENSHOT /Users/chenyibin/Documents/emacs/package/org-table-widget/demos/shots/narrow-window-960.png status=0 exists=t
+TABLE (:file "narrow-window.org" :frame 960 :columns 120 :table 1 :line 4 :hidden nil :header-rows 1) body=960px lines=7 borders=((top . 952) (header . 952) (first-data . 952) (last-data . 952) (bottom . 952)) max-width=960
+LINE-WIDTHS (960 960 960 960 960 960 960)
+TABLE (:file "narrow-window.org" :frame 960 :columns 120 :table 2 :line 10 :hidden nil :header-rows 1) body=960px lines=11 borders=((top . 952) (header . 952) (first-data . 952) (last-data . 952) (bottom . 952)) max-width=960
+LINE-WIDTHS (960 960 960 960 960 960 960 960 960 960 960)
+TABLE (:file "narrow-window.org" :frame 960 :columns 120 :table 3 :line 15 :hidden nil :header-rows 1) body=960px lines=5 borders=((top . 948) (header . 948) (first-data . 948) (last-data . 948) (bottom . 948)) max-width=956
+LINE-WIDTHS (956 956 956 956 956)
+COMPLETE

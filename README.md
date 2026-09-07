@@ -22,7 +22,7 @@ assumption, and a long cell pushes the whole row off the window edge.
 - links, emphasis and code inside cells keep the faces Org gives them.
 
 The buffer text is never touched.  Each table is covered by an overlay
-whose `display` property holds the laid-out widget, so `org-element`,
+whose `before-string` holds the laid-out widget, so `org-element`,
 export, `#+TBLFM` evaluation and Babel keep seeing the original table.
 Moving point into a table reveals its source for ordinary `org-table`
 editing; moving point out lays it out again.
@@ -87,11 +87,16 @@ best result:
 ## Development
 
 ```sh
-emacs -Q --batch -L . -L /path/to/textui -l org-table-widget.el \
-  -l test/org-table-widget-tests.el -f ert-run-tests-batch-and-exit
+emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
+  -l test/org-table-widget-tests.el -l test/org-table-widget-demo-tests.el \
+  -f ert-run-tests-batch-and-exit
 ```
 
 `demo.org` holds a multilingual table for trying the mode interactively.
+The [scenario report](demos/REPORT.md) documents the `demos/` fixtures,
+known failing assertions, GUI benchmarks, and pixel checks. The expanded
+suite deliberately reports the known scenario failures; see the report
+before interpreting a nonzero test exit status.
 
 ## Relation to md-mode
 

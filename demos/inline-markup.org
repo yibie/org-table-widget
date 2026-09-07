@@ -1,0 +1,16 @@
+#+title: Inline markup inside cells
+# Compare the rendered widget with source; link brackets must remain hidden.
+# Macros, footnotes, entities, and LaTeX are Org syntax, not export previews.
+
+| Element | Example | Neighbor |
+|---------+---------+----------|
+| emphasis | *bold* /italic/ _underline_ +strike+ | plain |
+| literals | =verbatim= ~code~ | =中文 code= |
+| links | [[https://example.org][short description]] | https://example.org/bare |
+| footnote | Reference [fn:1] | text |
+| timestamp | <2026-09-07 Sun> | [2026-09-07 Sun] |
+| math | $x^2$ \(a+b\) | a_1 b^2 |
+| entity | \alpha \beta | {{{title}}} |
+| mixed | *中文* [[https://example.org][日本語]] ~한국어~ | /English/ |
+
+[fn:1] A footnote outside the table.

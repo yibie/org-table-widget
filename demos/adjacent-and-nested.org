@@ -1,0 +1,43 @@
+#+title: Boundaries and nested contexts
+# Examples and table.el must not render. Check folding and list indentation.
+
+| First | table |
+| a | b |
+
+| Second | table |
+| c | d |
+This paragraph immediately follows a table without a blank line.
+
+* Unfolded heading
+| Visible | contents |
+| yes | yes |
+
+* Initially folded heading
+:PROPERTIES:
+:VISIBILITY: folded
+:END:
+| Hidden | until expanded |
+| secret | value |
+
+* Blocks and list
+#+BEGIN_QUOTE
+| Quoted | table |
+| q | r |
+#+END_QUOTE
+
+#+BEGIN_EXAMPLE
+| Example | NOT a table widget |
+| literal | source |
+#+END_EXAMPLE
+
++---------+---------+
+| table.el| skipped |
++---------+---------+
+| cell    | cell    |
++---------+---------+
+
+This paragraph contains | a pipe | but is not a table.
+
+- A list item containing a table:
+  | Indented | table |
+  | item | value |

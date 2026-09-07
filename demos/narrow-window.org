@@ -1,0 +1,17 @@
+#+title: Responsive and impossible widths
+# Compare at 60, 80, 120 columns, plus the 1400px and 700px visual runs.
+
+| ID | Explanation | Status |
+|----+-------------+--------|
+| 1 | A long paragraph with many short words should wrap without stealing all the space from its short neighbors. | OK |
+| 2 | 中文单元格应该逐字换行，同时保持左右边界与英文行一致。 | 完成 |
+
+# The longest token exceeds a narrow window's entire budget.
+| Token | Note |
+|-------+------|
+| UNBREAKABLE_abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij | token cap versus wrapping |
+
+# Twelve columns have an unavoidable minimum width.
+| Col1 | Col2 | Col3 | Col4 | Col5 | Col6 | Col7 | Col8 | Col9 | Col10 | Col11 | Col12 |
+|------+------+------+------+------+------+------+------+------+------+------+------|
+| 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text |

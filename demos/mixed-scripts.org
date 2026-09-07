@@ -1,0 +1,12 @@
+#+title: Mixed scripts and graphemes
+# Look for equal borders, intact graphemes, bidi order, and URL overflow.
+
+| Key | Mixed text | Notes |
+|-----+------------+-------|
+| CJK | 中文 English 日本語 한국어，。「全角」！？ | Latin + ＡＢＣ１２３ |
+| Emoji | 👨‍👩‍👧‍👦 developer 👩🏽‍💻 rainbow 🏳️‍🌈 | 🇯🇵 🇰🇷 🇨🇳 🇺🇸 |
+| Marks | café café naïve naïve á̧ | precomposed and combining |
+| RTL | English العربية مرحبا بالعالم English | ภาษาไทย สวัสดีครับ |
+| URL | https://example.org/averylongunbreakablepathabcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789 | should wrap or overflow visibly |
+| Empty |       |       |
+| Mixed | 数据 API 東京 v2 서울 / القاهرة | punctuation：；（）【】 |

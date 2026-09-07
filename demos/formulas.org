@@ -1,0 +1,21 @@
+#+title: Formula editing and recalculated values
+# Enter the first table, C-c C-c on TBLFM, then compare with the second copy.
+# Both formulas use ;%.2f. Captions and formula lines must remain outside widgets.
+
+#+NAME: invoice-to-recalculate
+#+CAPTION: Input table with deliberately stale totals
+#+ATTR_ORG: :width 60
+| Item | Qty | Unit | Total |
+|------+-----+------+-------|
+| Apples | 3 | 1.25 | 0.00 |
+| Tea | 2 | 4.50 | 0.00 |
+#+TBLFM: $4=$2*$3;%.2f
+
+#+NAME: invoice-recalculated
+#+CAPTION: Expected result after C-c C-c
+#+ATTR_ORG: :width 60
+| Item   | Qty | Unit | Total |
+|--------+-----+------+-------|
+| Apples |   3 | 1.25 |  3.75 |
+| Tea    |   2 | 4.50 |  9.00 |
+#+TBLFM: $4=$2*$3;%.2f

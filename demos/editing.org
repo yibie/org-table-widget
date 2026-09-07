@@ -1,0 +1,16 @@
+#+title: Reveal-on-point editing flow
+# 1. Enable org-table-widget-mode with point on this comment.
+# 2. Enter the table: source should reappear without an undo entry.
+# 3. Edit a cell, TAB to the next cell, RET for the next row.
+# 4. C-c C-c to align; recalculate via C-c C-c on the TBLFM line.
+# 5. M-<right> moves the column. Check the formula references afterward.
+# 6. Leave for the paragraph: the widget should return with your edits.
+# 7. Undo should undo only your edits, not rendering. Save keeps Org source.
+
+| Item | Count | Price | Total |
+|------+-------+-------+-------|
+| Coffee | 2 | 3.50 | 7.00 |
+| 茶 | 3 | 2.00 | 6.00 |
+#+TBLFM: $4=$2*$3;%.2f
+
+Leave point here to restore the widget.
