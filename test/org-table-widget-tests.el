@@ -348,5 +348,19 @@
         (setq-local face-remapping-alist '((default (:height 1.2) default)))
         (should-not (eq cache (org-table-widget--measurements (selected-window))))))))
 
+(ert-deftest org-table-widget-layout-gc-threshold-is-dynamically-scoped ()
+  (require 'textui)
+  (org-table-widget-tests--with-org "| a |\n"
+    (let ((gc-cons-threshold 800000)
+          observed)
+      (cl-letf (((symbol-function 'textui-layout-widget)
+                 (lambda (&rest _)
+                   (setq observed gc-cons-threshold)
+                   (error "Test layout failure"))))
+        (should-error (org-table-widget--display-table
+                       (point-min) (point-max) (selected-window) 80))
+        (should (= observed (* 64 1024 1024)))
+        (should (= gc-cons-threshold 800000))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

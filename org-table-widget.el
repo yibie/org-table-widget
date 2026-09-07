@@ -761,30 +761,35 @@ the region holds no data rows."
       (org-table-widget--remove-overlay overlay)
       (org-table-widget--schedule-relayout))))
 
+(defconst org-table-widget--layout-gc-threshold (* 64 1024 1024)
+  "Minimum GC allocation threshold while building a table widget.")
+
 (defun org-table-widget--display-table (beg end window width)
   "Cover the table between BEG and END with a widget for WINDOW at WIDTH."
-  (font-lock-ensure beg end)
-  (when-let* ((table (org-table-widget--parse beg end)))
-    (let* ((widget (widget-convert 'org-table-widget :value table
-                                   :window window))
-           (rendered (textui-layout-widget widget width))
-           (overlay (make-overlay beg end nil t nil)))
-      (overlay-put overlay 'org-table-widget widget)
-      ;; Replacement strings ignore nested `display' properties, including
-      ;; our pixel spaces.  A before-string honors them while the empty
-      ;; replacement hides the source, still using one overlay per table.
-      (overlay-put overlay 'display "")
-      (overlay-put overlay 'before-string
-                   (if (eq (char-before end) ?\n)
-                       (concat rendered "\n")
-                     rendered))
-      (overlay-put overlay 'evaporate t)
-      (overlay-put overlay 'modification-hooks
-                   (list #'org-table-widget--modified))
-      (overlay-put overlay 'insert-in-front-hooks
-                   (list #'org-table-widget--modified))
-      (push overlay org-table-widget--overlays)
-      overlay)))
+  (let ((gc-cons-threshold (max gc-cons-threshold
+                                org-table-widget--layout-gc-threshold)))
+    (font-lock-ensure beg end)
+    (when-let* ((table (org-table-widget--parse beg end)))
+      (let* ((widget (widget-convert 'org-table-widget :value table
+                                     :window window))
+             (rendered (textui-layout-widget widget width))
+             (overlay (make-overlay beg end nil t nil)))
+        (overlay-put overlay 'org-table-widget widget)
+        ;; Replacement strings ignore nested `display' properties, including
+        ;; our pixel spaces.  A before-string honors them while the empty
+        ;; replacement hides the source, still using one overlay per table.
+        (overlay-put overlay 'display "")
+        (overlay-put overlay 'before-string
+                     (if (eq (char-before end) ?\n)
+                         (concat rendered "\n")
+                       rendered))
+        (overlay-put overlay 'evaporate t)
+        (overlay-put overlay 'modification-hooks
+                     (list #'org-table-widget--modified))
+        (overlay-put overlay 'insert-in-front-hooks
+                     (list #'org-table-widget--modified))
+        (push overlay org-table-widget--overlays)
+        overlay))))
 
 (defun org-table-widget--clear ()
   "Remove every widget overlay from the current buffer."
