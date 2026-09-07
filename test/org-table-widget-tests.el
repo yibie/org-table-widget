@@ -203,5 +203,99 @@
     (org-table-widget-mode -1)
     (should-not org-table-widget--overlays)))
 
+(ert-deftest org-table-widget-overlay-preserves-pixel-spaces-and-newlines ()
+  (require 'textui)
+  (dolist (source '("| a | longer |\n| b | x |\n"
+                    "| a | longer |\n| b | x |"))
+    (org-table-widget-tests--with-org source
+                                      (org-table-widget-tests--with-pixel-mocks
+                                       (font-lock-ensure)
+                                       (set-buffer-modified-p nil)
+                                       (let* ((before (buffer-string))
+                                              (undo buffer-undo-list)
+                                              (overlay (org-table-widget--display-table
+                                                        (point-min) (point-max) (selected-window) 80))
+                                              (rendered (overlay-get overlay 'before-string)))
+                                         (should (equal (overlay-get overlay 'display) ""))
+                                         (should (stringp rendered))
+                                         (should (text-property-any 0 (length rendered)
+                                                                    'org-table-widget-spacing t rendered))
+                                         (should (eq (string-suffix-p "\n" rendered)
+                                                     (string-suffix-p "\n" source)))
+                                         (should (= (length org-table-widget--overlays) 1))
+                                         (should (eq overlay (org-table-widget--overlay-at (point-min))))
+                                         (should (eq overlay (org-table-widget--overlay-at (1- (point-max)))))
+                                         (should-not (org-table-widget--overlay-at (point-max)))
+                                         (org-table-widget--remove-overlay overlay)
+                                         (should-not (overlay-buffer overlay))
+                                         (should-not org-table-widget--overlays)
+                                         (should (equal-including-properties before (buffer-string)))
+                                         (should (eq undo buffer-undo-list))
+                                         (should-not (buffer-modified-p)))))))
+
+(ert-deftest org-table-widget-overlay-lifecycle ()
+  (org-table-widget-tests--with-org "Before\n| a | longer |\n\nAfter\n| b | c |\n"
+                                    (save-window-excursion
+                                      (switch-to-buffer (current-buffer))
+                                      (org-table-widget-tests--with-pixel-mocks
+                                       (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+                                         (font-lock-ensure)
+                                         (buffer-enable-undo)
+                                         (set-buffer-modified-p nil)
+                                         (let ((before (buffer-string))
+                                               (undo buffer-undo-list)
+                                               (org-table-widget-relayout-delay 0))
+                                           (unwind-protect
+                                               (progn
+                                                 (org-table-widget-mode 1)
+                                                 (should (= (length org-table-widget--overlays) 2))
+                                                 (let ((old (copy-sequence org-table-widget--overlays)))
+                                                   (org-table-widget-refresh)
+                                                   (should (seq-every-p
+                                                            (lambda (overlay) (not (overlay-buffer overlay)))
+                                                            old)))
+                                                 (goto-char (caar (org-table-widget--tables)))
+                                                 (org-table-widget--post-command)
+                                                 (should-not (org-table-widget--overlay-at (point)))
+                                                 (should (= (length org-table-widget--overlays) 1))
+                                                 (goto-char (point-min))
+                                                 (org-table-widget--post-command)
+                                                 (should (= (length org-table-widget--overlays) 2))
+                                                 (goto-char (caar (org-table-widget--tables)))
+                                                 (org-table-widget-toggle)
+                                                 (should-not (org-table-widget--overlay-at (point)))
+                                                 (org-table-widget-toggle)
+                                                 (should (= (length org-table-widget--overlays) 2))
+                                                 ;; Force the same callback that a changed window width uses.
+                                                 (let ((old (copy-sequence org-table-widget--overlays)))
+                                                   (setq org-table-widget--width 1)
+                                                   (org-table-widget--window-changed)
+                                                   (should (= (length org-table-widget--overlays) 2))
+                                                   (should (seq-every-p
+                                                            (lambda (overlay) (not (overlay-buffer overlay)))
+                                                            old)))
+                                                 (let ((old (copy-sequence org-table-widget--overlays)))
+                                                   (org-table-widget-mode -1)
+                                                   (should-not org-table-widget--overlays)
+                                                   (should (seq-every-p
+                                                            (lambda (overlay) (not (overlay-buffer overlay)))
+                                                            old)))
+                                                 (should (equal-including-properties before (buffer-string)))
+                                                 (should (eq undo buffer-undo-list))
+                                                 (should-not (buffer-modified-p)))
+                                             (org-table-widget-mode -1))))))))
+
+(ert-deftest org-table-widget-overlay-reveals-on-modification ()
+  (require 'textui)
+  (dolist (offset '(0 3))
+    (org-table-widget-tests--with-org "| a | longer |\n"
+                                      (org-table-widget-tests--with-pixel-mocks
+                                       (let ((overlay (org-table-widget--display-table
+                                                       (point-min) (point-max) (selected-window) 80)))
+                                         (goto-char (+ (point-min) offset))
+                                         (insert "x")
+                                         (should-not (overlay-buffer overlay))
+                                         (should-not org-table-widget--overlays))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

@@ -3,6 +3,7 @@
 ;; Copyright (C) 2026 yibie
 
 ;; Author: yibie <https://github.com/yibie>
+;; Assisted-by: OpenAI Codex
 ;; Maintainer: yibie <https://github.com/yibie>
 ;; URL: https://github.com/yibie/org-table-widget
 ;; Version: 0.1.0
@@ -32,7 +33,7 @@
 ;; column, and the table reflows when the window width changes.
 ;;
 ;; The buffer text is never modified.  Each table is covered by an
-;; overlay whose `display' property holds the laid-out widget, so
+;; overlay whose `before-string' holds the laid-out widget, so
 ;; `org-element', export, `#+TBLFM' evaluation and Babel keep seeing
 ;; the original table.  Moving point into a table removes its widget
 ;; and reveals the source for ordinary `org-table' editing; moving
@@ -319,7 +320,7 @@ zero-width and must stay attached."
       (nreverse lines))))
 
 (defun org-table-widget--longest-token-pixels (text window)
-  "Return the pixel width of the widest unbreakable token in TEXT."
+  "Return the pixel width of the widest unbreakable token in TEXT in WINDOW."
   (let ((length (length text))
         (start 0)
         (widest 0))
@@ -749,7 +750,14 @@ the region holds no data rows."
            (rendered (textui-layout-widget widget width))
            (overlay (make-overlay beg end nil t nil)))
       (overlay-put overlay 'org-table-widget widget)
-      (overlay-put overlay 'display (concat rendered "\n"))
+      ;; Replacement strings ignore nested `display' properties, including
+      ;; our pixel spaces.  A before-string honors them while the empty
+      ;; replacement hides the source, still using one overlay per table.
+      (overlay-put overlay 'display "")
+      (overlay-put overlay 'before-string
+                   (if (eq (char-before end) ?\n)
+                       (concat rendered "\n")
+                     rendered))
       (overlay-put overlay 'evaporate t)
       (overlay-put overlay 'modification-hooks
                    (list #'org-table-widget--modified))
@@ -877,10 +885,10 @@ displaying its widget.  Moving point into a table reveals its source."
       (progn
         (unless (derived-mode-p 'org-mode)
           (setq org-table-widget-mode nil)
-          (user-error "org-table-widget-mode requires Org mode"))
+          (user-error "Org table widgets require Org mode"))
         (unless (require 'textui nil t)
           (setq org-table-widget-mode nil)
-          (user-error "org-table-widget-mode requires TextUI"))
+          (user-error "Org table widgets require TextUI"))
         (add-hook 'post-command-hook #'org-table-widget--post-command nil t)
         (add-hook 'window-configuration-change-hook
                   #'org-table-widget--window-changed nil t)
