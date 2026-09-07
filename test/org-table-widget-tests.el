@@ -362,5 +362,25 @@
         (should (= observed (* 64 1024 1024)))
         (should (= gc-cons-threshold 800000))))))
 
+(ert-deftest org-table-widget-measure-preserves-source-when-point-moves ()
+  (dolist (fail '(nil t))
+    (with-temp-buffer
+      (insert "Keep source bytes\n")
+      (buffer-enable-undo)
+      (set-buffer-modified-p nil)
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (let ((before (buffer-string)) (undo buffer-undo-list))
+          (cl-letf (((symbol-function 'window-text-pixel-size)
+                     (lambda (&rest _)
+                       (goto-char (point-min))
+                       (if fail (error "Test measurement failure") '(10 . 10)))))
+            (if fail
+                (should-error (org-table-widget--measure-string "probe" (selected-window)))
+              (should (= 10 (org-table-widget--measure-string "probe" (selected-window)))))
+            (should (equal-including-properties before (buffer-string)))
+            (should (eq undo buffer-undo-list))
+            (should-not (buffer-modified-p))))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here
