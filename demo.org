@@ -1,24 +1,146 @@
-#+title: Org table widget spike
+#+title: Org Table Widget — Interactive Demo
+#+language: en
 
-* 多语言表格
+* Everyday project overview
 
-#+name: languages
-| 语言     | Example                                                    | Note                                     | 状态 |
-|----------+------------------------------------------------------------+------------------------------------------+------|
-| 中文     | 这是一段比较长的中文说明文字，用来测试单元格内换行是否正常工作。 | *粗体* 和 =代码= 混排                    | ✅   |
-| 日本語   | 東京タワーは1958年に完成した電波塔です。                     | [[https://example.org][リンク]] を含むセル | 🚧   |
-| 한국어   | 서울은 대한민국의 수도이며 인구가 약 천만 명입니다.            | 짧음                                     | ✅   |
-| English  | The quick brown fox jumps over the lazy dog, repeatedly.   | ~inline code~ and a 🇯🇵 flag              | ❌   |
-|----------+------------------------------------------------------------+------------------------------------------+------|
-| Total    | 4 rows                                                     |                                          |      |
+#+name: project-overview
+| Project               | Owner | Due date         | Status      | Notes                                          |
+|-----------------------+-------+------------------+-------------+------------------------------------------------|
+| Documentation refresh | Maya  | <2026-09-18 Fri> | In progress | Update screenshots and release notes.          |
+| API migration         | Noor  | <2026-09-25 Fri> | Blocked     | Waiting for access to the staging credentials. |
+| Release checklist     | Chen  | <2026-09-30 Wed> | Ready       |                                                |
 
-Some paragraph after the table, to show that ordinary text is untouched.
+The paragraph after a table remains ordinary text.
 
-* 右对齐与数字
+* Mixed scripts, emoji, and graphemes
 
-|   Item | Qty |    Price |
-| <r>    | <r> |      <r> |
-|--------+-----+----------|
-| Apple  |   3 |     1.50 |
-| 苹果派 |  12 | 12345.00 |
-#+TBLFM: $3=$2*0.5
+#+name: mixed-scripts
+| Kind      | Example | What to inspect |
+|-----------+---------+-----------------|
+| CJK       | 中文 English 日本語 한국어，。「全角」！？ | Borders stay aligned across full-width characters. |
+| Emoji     | 👨‍👩‍👧‍👦 developer 👩🏽‍💻 rainbow 🏳️‍🌈 | A grapheme cluster must not be split while wrapping. |
+| Combining | café café naïve naïve á̧ | Precomposed and combining forms have stable widths. |
+| RTL       | English العربية مرحبا بالعالم English | Bidirectional text remains in the expected order. |
+| Flags     | 🇯🇵 🇰🇷 🇨🇳 🇺🇸 | Adjacent regional-indicator pairs remain intact. |
+
+* Inline Org markup and links
+
+#+name: inline-markup
+| Element | Example | Neighbor |
+|---------+---------+----------|
+| Emphasis | *bold* /italic/ _underline_ +strike+ | Plain text |
+| Literals | =verbatim= ~code~ | =中文 code= |
+| Link | [[https://example.org][short description]] | https://example.org/bare |
+| Timestamp | <2026-09-07 Mon> | [2026-09-08 Tue] |
+| Math and entities | $x^2$ \(a+b\) \alpha \beta | a_1 b^2 |
+| Mixed markup | *中文* [[https://example.org][日本語]] ~한국어~ | /English/ |
+
+* Alignment, numbers, and width cookies
+
+#+name: explicit-alignment
+| Left | Center | Right | Width cookie |
+| <l>  | <c>    | <r>   | <10>         |
+|------+-----------+---------+--------------|
+| alpha | centered |    1.50 | A longer value may wrap. |
+| longer label | another phrase | 12345.00 | Short |
+|      | -         |         | - |
+
+| Item | Quantity | Unit price |
+|------+----------+------------|
+| Apple |        3 |       1.50 |
+| Pear  |       12 |      20.00 |
+| Empty |          |          - |
+
+* Column groups, rules, and table shapes
+
+#+name: grouped-columns
+| / | < | > |
+|   | Planning | Delivery |
+|---+----------+----------|
+| Scope | Approved | Yes |
+| Design | In review | No |
+|---+----------+----------|
+| Launch | 2026-10-01 | Pending |
+
+One-column and single-row tables are useful edge cases:
+
+| Only column |
+|-------------|
+| One |
+| Two |
+
+| Single | row | only |
+
+* Wrapping in a narrow window
+
+Resize the window or increase text scale while looking at this table.  The
+content should reflow on idle without losing table borders or cell faces.
+
+#+name: narrow-window
+| Topic             | Long description                                                                                                                                                    | URL                                                                              |
+|-------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------|
+| Responsive layout | This cell intentionally contains a long English sentence so that it wraps over several lines in a narrow window and exercises height calculation for the whole row. | [[https://example.org/very/long/path/that/should/remain/a/link/when/the/table/reflows][A deliberately long link]]                                                         |
+| Source fidelity   | The visual widget is an overlay: edits, export, formulas, and version control continue to use the underlying Org table.                                             | https://example.org/averylongunbreakablepathabcdefghijklmnopqrstuvwxyz0123456789 |
+
+* Formulas and editing
+
+#+name: invoice-to-recalculate
+
+#+caption: Input table with deliberately stale totals
+| Item   | Qty | Unit price | Total |
+|--------+-----+------------+-------|
+| Apples |   3 |       3.25 |  9.75 |
+| Tea    |   2 |       4.50 |  9.00 |
+| Rice   |   1 |      12.00 | 12.00 |
+#+TBLFM: $4=$2*$3;%.2f
+
+Expected values after recalculation:
+
+| Item   | Qty | Unit price | Total |
+|--------+-----+------------+-------|
+| Apples |   3 |       2.25 |  3.75 |
+| Tea    |   2 |       4.50 |  9.00 |
+| Rice   |   1 |      12.00 | 12.00 |
+
+* Boundaries and nested contexts
+
+Adjacent tables, folded headings, quoted blocks, literal examples, and tables
+inside lists each exercise a different boundary in Org's parser.
+
+| First table | Value |
+|-------------+-------|
+| alpha       |     1 |
+
+| Second table | Value |
+|--------------+-------|
+| beta         |     2 |
+This paragraph immediately follows the second table.
+
+** A table in a quote block
+
+#+begin_quote
+| Quoted | table |
+|--------+-------|
+| q      | value |
+#+end_quote
+
+** A literal block is not an Org table
+
+#+begin_example
+| Example | This must remain literal source text |
+|---------+--------------------------------------|
+| cell    | cell                                 |
+#+end_example
+
+- A list item containing a table:
+  | Indented | table |
+  |----------+-------|
+  | item     | value |
+
+* Quick controls
+
+- =M-x org-table-widget-mode=: enable or disable rendering in this buffer.
+- =M-x org-table-widget-toggle=: reveal or render the table at point.
+- =M-x org-table-widget-refresh=: redraw every table in the buffer.
+- Enter a rendered table to edit its original Org source; leave it to render
+  the widget again.

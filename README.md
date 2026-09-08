@@ -82,6 +82,35 @@ Customize with `M-x customize-group RET org-table-widget RET`.
   row. A narrow-window layout smoke test also passed with the mode enabled.
   This does not eliminate the minimum-width overflow limitation noted below.
 
+## Compared with valign
+
+`org-table-widget` and [Valign](https://github.com/casouri/valign) share a basic
+promise: both use pixel measurements to align tables without rewriting their
+source text. They work at different layers. Valign visually aligns the existing
+table in place. `org-table-widget` covers the source with a separate, responsive
+rendering and reveals the source when it is time to edit.
+
+| Capability | `org-table-widget` | Valign |
+| --- | --- | --- |
+| Display model | Builds a block widget and covers the source table with an overlay. | Adds display properties and overlays to spaces and separators in the existing table. |
+| Table formats | Org pipe tables. | Org, Markdown and `table.el` tables. |
+| Editing | Reveals the ordinary Org source when point enters the table, then renders it again when point leaves. | Keeps the visually aligned source visible and editable. |
+| Mixed-width text | Pixel-aligns CJK, Latin text, emoji and inline code inside a fixed-pitch table. | Pixel-aligns the table as displayed, including variable-pitch text, CJK and images. |
+| Narrow windows | Allocates columns within the window budget, wraps cell content and reflows after resizing. | Keeps cells on one source line at their natural width; it does not provide responsive cell wrapping. |
+| Alignment | Supports explicit `<l>`, `<c>` and `<r>` Org cookies, including centered cells. | Infers left or right alignment from the source layout; Markdown center alignment is treated as left alignment. |
+| Presentation | Draws complete Unicode or ASCII borders, styles header rows, supports horizontal rules and optional zebra striping. | Preserves the source table's shape, with an optional fancy vertical-bar style. |
+| Large tables | Caches measurements and unchanged renderings and has no fixed source-size cutoff. | Defaults to a fixed-pitch fallback for tables larger than 4,000 characters. |
+| Requirements | Emacs 29.1+, Org 9.6+ and TextUI 0.8.0+; currently installed from source or with `package-vc`. | Emacs 26+ with no extra package dependency; available from GNU ELPA. |
+
+Choose Valign when the main goal is to keep an Org or Markdown table aligned
+while editing it, especially with variable-pitch text or inline images. Choose
+`org-table-widget` when an Org buffer needs a reading-oriented table that wraps
+to narrow windows and provides its own borders and row styling.
+
+The packages should be treated as alternatives for the same Org table. Running
+both modes on one table is untested, and both manage display properties or
+overlays in that region.
+
 ## Status
 
 **0.1.0 is an early release.** Known limitations:
