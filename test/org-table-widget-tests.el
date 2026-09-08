@@ -185,6 +185,82 @@
 
 ;;;; Overlays
 
+(ert-deftest org-table-widget-reveal-entry-direction ()
+  ;; Simulate the landing position produced by display-based vertical motion.
+  (dolist (case '((previous-line below last)
+                  (next-line below last) ; Negative prefix argument.
+                  (next-line above first)
+                  (isearch-backward below first)))
+    (org-table-widget-tests--with-org "Before\n| a |\n| b |\n| c |\nAfter\n"
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (org-table-widget-mode 1)
+        (unwind-protect
+            (let* ((table (car (org-table-widget--tables)))
+                   (overlay (org-table-widget--display-table
+                             (car table) (cdr table) (selected-window) 80))
+                   (this-command (car case)))
+              (goto-char (if (eq (nth 1 case) 'below) (cdr table) (point-min)))
+              (run-hooks 'pre-command-hook)
+              (goto-char (car table))
+              (run-hooks 'post-command-hook)
+              (should (= (line-number-at-pos)
+                         (if (eq (nth 2 case) 'last) 4 2)))
+              (should-not (overlay-buffer overlay))
+              (should org-table-widget--inside-table))
+          (org-table-widget-mode -1))))))
+
+(ert-deftest org-table-widget-reveal-skipped-table ()
+  ;; A display-based Down can cross the entire overlay in one step.
+  (dolist (command '(next-line previous-line isearch-forward))
+    (org-table-widget-tests--with-org "Before\n| a |\n| b |\nAfter\n"
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (org-table-widget-mode 1)
+        (unwind-protect
+            (let* ((table (car (org-table-widget--tables)))
+                   (overlay (org-table-widget--display-table
+                             (car table) (cdr table) (selected-window) 80))
+                   (this-command command))
+              (run-hooks 'pre-command-hook)
+              (goto-char (cdr table))
+              (run-hooks 'post-command-hook)
+              (if (eq command 'isearch-forward)
+                  (progn
+                    (should (= (point) (cdr table)))
+                    (should (overlay-buffer overlay)))
+                (should (= (point) (car table)))
+                (should-not (overlay-buffer overlay))
+                (should org-table-widget--inside-table)))
+          (org-table-widget-mode -1))))))
+
+(ert-deftest org-table-widget-reveal-vertical-interactive ()
+  ;; Redisplay is required: batch line motion ignores the preview's geometry.
+  (skip-unless (not noninteractive))
+  (dolist (visual '(nil t))
+    (dolist (command '(next-line previous-line))
+      (org-table-widget-tests--with-org "Before\n| a |\n| b |\n| c |\nAfter\n"
+        (save-window-excursion
+          (switch-to-buffer (current-buffer))
+          (when visual (visual-line-mode 1))
+          (goto-char (point-max))
+          (org-table-widget-mode 1)
+          (unwind-protect
+              (let ((table (car (org-table-widget--tables))))
+                (unless org-table-widget--overlays
+                  (org-table-widget--display-table
+                   (car table) (cdr table) (selected-window) 80))
+                (goto-char (if (eq command 'next-line) (point-min) (cdr table)))
+                (redisplay t)
+                (let ((this-command command))
+                  (run-hooks 'pre-command-hook)
+                  (call-interactively command)
+                  (run-hooks 'post-command-hook))
+                (should (= (line-number-at-pos)
+                           (if (eq command 'next-line) 2 4)))
+                (should-not org-table-widget--overlays))
+            (org-table-widget-mode -1)))))))
+
 (ert-deftest org-table-widget-tables-skips-table-el ()
   (org-table-widget-tests--with-org "text\n| a |\n| b |\n\n+---+\n| c |\n+---+\n\n| d |\n"
     (let ((tables (org-table-widget--tables)))
@@ -200,7 +276,11 @@
     (set-buffer-modified-p nil)
     (org-table-widget-mode 1)
     (should-not (buffer-modified-p))
+    (should (markerp org-table-widget--previous-point))
+    (should (memq #'org-table-widget--pre-command pre-command-hook))
     (org-table-widget-mode -1)
+    (should-not org-table-widget--previous-point)
+    (should-not (memq #'org-table-widget--pre-command pre-command-hook))
     (should-not org-table-widget--overlays)))
 
 (ert-deftest org-table-widget-overlay-preserves-pixel-spaces-and-newlines ()

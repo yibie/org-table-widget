@@ -740,6 +740,9 @@ Only the most recent rendering of each table is retained.")
 (defvar-local org-table-widget--inside-table nil
   "Non-nil while point is inside a revealed table.")
 
+(defvar-local org-table-widget--previous-point nil
+  "Marker recording point before the current command.")
+
 (defun org-table-widget--window ()
   "Return the window to lay tables out for, or nil."
   (let ((windows (get-buffer-window-list (current-buffer) nil t)))
@@ -920,12 +923,39 @@ A table containing point is left as source when
                            org-table-widget--width)))
       (org-table-widget--schedule-relayout))))
 
+(defun org-table-widget--pre-command ()
+  "Record point so the direction of entry into a preview can be recognized."
+  (when org-table-widget-reveal-on-point
+    (set-marker org-table-widget--previous-point (point))))
+
 (defun org-table-widget--post-command ()
   "Reveal the table under point and restore widgets point has left."
   (when org-table-widget-reveal-on-point
-    (let ((overlay (org-table-widget--overlay-at (point))))
+    (let ((vertical-motion
+           (and (memq this-command '(previous-line next-line))
+                line-move-visual
+                org-table-widget--previous-point
+                (marker-position org-table-widget--previous-point)))
+          (overlay (org-table-widget--overlay-at (point))))
+      ;; Down can skip the entire replacement and land just past its end.
+      (when (and (not overlay) vertical-motion (> (point) (point-min)))
+        (let ((crossed (org-table-widget--overlay-at (1- (point)))))
+          (when (and crossed
+                     (= (point) (overlay-end crossed))
+                     (< org-table-widget--previous-point (overlay-start crossed)))
+            (setq overlay crossed)
+            (goto-char (overlay-start overlay)))))
       (cond
        (overlay
+        ;; Display-based vertical motion can land at the start of the whole
+        ;; preview even when entering from below (as in org-latex-preview).
+        ;; Do not redirect searches or other explicit jumps into the table.
+        (when (and vertical-motion
+                   (= (point) (overlay-start overlay))
+                   (>= org-table-widget--previous-point (overlay-end overlay)))
+          ;; Table overlays include the final newline, unlike LaTeX previews.
+          (goto-char (1- (overlay-end overlay)))
+          (beginning-of-line))
         (org-table-widget--remove-overlay overlay)
         (setq org-table-widget--inside-table t))
        ((and org-table-widget--inside-table
@@ -971,6 +1001,9 @@ displaying its widget.  Moving point into a table reveals its source."
           (user-error "Org table widgets require TextUI"))
         (add-hook 'after-change-functions
                   #'org-table-widget--invalidate-render-cache nil t)
+        (unless org-table-widget--previous-point
+          (setq org-table-widget--previous-point (make-marker)))
+        (add-hook 'pre-command-hook #'org-table-widget--pre-command nil t)
         (add-hook 'post-command-hook #'org-table-widget--post-command nil t)
         (add-hook 'window-configuration-change-hook
                   #'org-table-widget--window-changed nil t)
@@ -980,6 +1013,10 @@ displaying its widget.  Moving point into a table reveals its source."
     (remove-hook 'after-change-functions
                  #'org-table-widget--invalidate-render-cache t)
     (org-table-widget--invalidate-render-cache)
+    (remove-hook 'pre-command-hook #'org-table-widget--pre-command t)
+    (when org-table-widget--previous-point
+      (set-marker org-table-widget--previous-point nil)
+      (setq org-table-widget--previous-point nil))
     (remove-hook 'post-command-hook #'org-table-widget--post-command t)
     (remove-hook 'window-configuration-change-hook
                  #'org-table-widget--window-changed t)

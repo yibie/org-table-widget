@@ -13,6 +13,10 @@ Rendering uses overlays, leaving the source table intact for Org editing,
 export, formulas and Babel. Moving point into a table reveals its source;
 moving out renders it again.
 
+The cursor-entry correction for moving upward into a table preview is adapted
+from [karthink's org-latex-preview fix](https://github.com/karthink/org-mode/blob/olp/lisp/org-latex-preview.el#L670).
+Thanks to karthink for the fix and for explaining the multi-line preview edge case.
+
 ## Requirements
 
 Emacs **29.1+**, Org **9.6+**, [TextUI **0.8.0+**](https://github.com/yibie/textui),
@@ -65,6 +69,19 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 | `org-table-widget-reveal-on-point` | `t` | Reveal source when point enters a table. |
 | `org-table-widget-cell-properties` | `(face font-lock-face invisible display mouse-face help-echo keymap follow-link htmlize-link org-emphasis)` | Text properties retained in rendered cells. |
 
+### Compatibility
+
+- **`org-modern`:** Set `org-modern-table` to `nil` so the two packages do not
+  style the same table. Non-table styling has been smoke-tested in both
+  mode-enabling orders, including through `org-mode-hook`, with Emacs 31.0.91,
+  Org 9.8.7 and org-modern 1.15. A reported load-order conflict has not yet been
+  reproduced; please include package versions and a minimal configuration when
+  reporting it.
+- **`visual-line-mode`:** Cursor entry is tested with the mode both enabled and
+  disabled: Down reveals the first source row, and Up reveals the last source
+  row. A narrow-window layout smoke test also passed with the mode enabled.
+  This does not eliminate the minimum-width overflow limitation noted below.
+
 ## Status
 
 **0.1.0 is an early release.** Known limitations:
@@ -74,7 +91,7 @@ Customize with `M-x customize-group RET org-table-widget RET`.
   Overflow is truncated when `truncate-lines` is non-nil (the Org default), or
   wraps when nil; the widget does not change `truncate-lines`.
 - Numeric columns are not automatically right-aligned; use an explicit `<r>` cookie.
-- Coexistence with `org-modern` and `valign` is untested.
+- Coexistence with `valign` is untested; see above for `org-modern` test coverage.
 
 See [CHANGELOG.md](CHANGELOG.md) for release changes.
 
@@ -114,6 +131,13 @@ emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
   -l test/org-table-widget-tests.el -l test/org-table-widget-demo-tests.el \
   -f ert-run-tests-batch-and-exit
 ```
+
+The redisplay-dependent motion test is skipped in batch mode. In a graphical
+Emacs, load `test/org-table-widget-tests.el` and run
+`M-x ert RET org-table-widget-reveal-vertical-interactive RET`.
+For the optional org-modern compatibility test, put org-modern and its
+dependencies on `load-path`, load `test/org-table-widget-compat-tests.el`, then
+run `M-x ert RET org-table-widget-compat- RET`.
 
 Prefer `--batch` when real pixels are unnecessary. On macOS, the Emacs.app
 launcher ignores the shell working directory, hence the absolute paths above.
