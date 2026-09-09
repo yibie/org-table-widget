@@ -985,6 +985,10 @@ A table containing point is left as source when
             (setq org-table-widget--inside-table nil)))))
      (t (user-error "Not at an Org table")))))
 
+(defun org-table-widget--before-major-mode-change ()
+  "Release previews and pending work before buffer-local state is reset."
+  (org-table-widget-mode -1))
+
 ;;;###autoload
 (define-minor-mode org-table-widget-mode
   "Show Org tables as responsive pixel-aligned widgets.
@@ -999,6 +1003,10 @@ displaying its widget.  Moving point into a table reveals its source."
         (unless (require 'textui nil t)
           (setq org-table-widget-mode nil)
           (user-error "Org table widgets require TextUI"))
+        ;; Reverting normally reinitializes Org mode.  Overlays can survive
+        ;; that reset even though the buffer-local ownership list does not.
+        (add-hook 'change-major-mode-hook
+                  #'org-table-widget--before-major-mode-change nil t)
         (add-hook 'after-change-functions
                   #'org-table-widget--invalidate-render-cache nil t)
         (unless org-table-widget--previous-point
@@ -1010,6 +1018,8 @@ displaying its widget.  Moving point into a table reveals its source."
         (add-hook 'text-scale-mode-hook #'org-table-widget--schedule-relayout
                   nil t)
         (org-table-widget-refresh))
+    (remove-hook 'change-major-mode-hook
+                 #'org-table-widget--before-major-mode-change t)
     (remove-hook 'after-change-functions
                  #'org-table-widget--invalidate-render-cache t)
     (org-table-widget--invalidate-render-cache)

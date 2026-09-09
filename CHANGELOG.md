@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Prevent duplicate table previews after `revert-buffer` reinitializes Org mode;
+  release owned overlays, markers and pending relayout before major-mode changes.
+
 - Subtract effective line and wrap prefix widths from table layout budgets,
   including Org indentation, and invalidate cached layouts when they change.
 

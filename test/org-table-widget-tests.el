@@ -598,5 +598,74 @@
                          (point-min) (selected-window))))
           (should (equal measured '((space :width (17)) (space :width (23))))))))))
 
+(ert-deftest org-table-widget-revert-does-not-duplicate-previews ()
+  "Repeated real file reverts keep one preview and leave source unchanged."
+  (let ((file (make-temp-file "otw-revert-" nil ".org"
+                              "Before\n| a | b |\n| c | d |\n\nAfter\n"))
+        (org-mode-hook '(org-table-widget-mode))
+        (org-table-widget-relayout-delay 3600))
+    (unwind-protect
+        (save-window-excursion
+          (org-table-widget-tests--with-pixel-mocks
+            (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+              (find-file file)
+              (goto-char (point-min))
+              (org-table-widget-refresh)
+              (dolist (preserve-modes '(nil nil t nil t))
+                (revert-buffer t t preserve-modes)
+                (should org-table-widget-mode)
+                (should (equal (buffer-string)
+                               "Before\n| a | b |\n| c | d |\n\nAfter\n"))
+                (should (= 1 (length org-table-widget--overlays)))
+                (should (= 1 (length
+                              (seq-filter
+                               (lambda (ov) (overlay-get ov 'org-table-widget))
+                               (append (car (overlay-lists))
+                                       (cdr (overlay-lists)))))))))))
+      (when-let* ((buffer (find-buffer-visiting file)))
+        (with-current-buffer buffer (org-table-widget-mode -1))
+        (kill-buffer buffer))
+      (delete-file file))))
+
+(ert-deftest org-table-widget-major-mode-change-releases-owned-resources ()
+  "Mode changes release previews, markers and timers, not other overlays."
+  (org-table-widget-tests--with-org "Before\n| a | b |\n\nAfter\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((org-table-widget-relayout-delay 3600))
+        (org-table-widget-tests--with-pixel-mocks
+          (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+            (unwind-protect
+                (progn
+                  (org-table-widget-mode 1)
+                  (org-table-widget--pre-command)
+                  (org-table-widget--schedule-relayout)
+                  (let ((previews (copy-sequence org-table-widget--overlays))
+                        (marker org-table-widget--previous-point)
+                        (timer org-table-widget--timer)
+                        (unrelated (make-overlay 1 3)))
+                    (should previews)
+                    (should (marker-position marker))
+                    (should (timerp timer))
+                    (fundamental-mode)
+                    (should-not org-table-widget-mode)
+                    (dolist (overlay previews)
+                      (should-not (overlay-buffer overlay)))
+                    (should-not (marker-position marker))
+                    (should-not (memq timer timer-idle-list))
+                    (should (eq (overlay-buffer unrelated) (current-buffer)))
+                    (delete-overlay unrelated)))
+              (org-table-widget-mode -1))))))))
+
+(ert-deftest org-table-widget-disable-removes-major-mode-cleanup-hook ()
+  "Explicit disable removes its buffer-local major-mode cleanup hook."
+  (org-table-widget-tests--with-org "| a | b |\n"
+    (org-table-widget-mode 1)
+    (should (memq #'org-table-widget--before-major-mode-change
+                  change-major-mode-hook))
+    (org-table-widget-mode -1)
+    (should-not (memq #'org-table-widget--before-major-mode-change
+                      change-major-mode-hook))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here
