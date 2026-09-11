@@ -631,6 +631,9 @@
       (let ((beg (point-min)) (end (point-max)) seen)
         (org-table-widget-tests--with-pixel-mocks
           (cl-letf (((symbol-function 'window-font-width) (lambda (&rest _) 10))
+                    ;; Both fringes shown: no continuation column is kept.
+                    ((symbol-function 'org-table-widget--reserves-continuation-p)
+                     #'ignore)
                     ((symbol-function 'font-lock-ensure) #'ignore)
                     ((symbol-function 'textui-layout-widget)
                      (lambda (widget width)
@@ -657,6 +660,38 @@
             (remove-text-properties beg end '(line-prefix nil wrap-prefix nil))
             (org-table-widget--display-table beg end (selected-window) 80)
             (should (equal (car seen) '(80 800)))))))))
+
+(ert-deftest org-table-widget-continuation-column-reduces-layout-budget ()
+  (skip-unless (boundp 'overflow-newline-into-fringe))
+  (require 'textui)
+  (org-table-widget-tests--with-org "| a | b |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((beg (point-min)) (end (point-max)) (fringes '(8 8 nil nil)) seen)
+        (org-table-widget-tests--with-pixel-mocks
+          (cl-letf (((symbol-function 'window-font-width) (lambda (&rest _) 10))
+                    ((symbol-function 'window-fringes)
+                     (lambda (&rest _) fringes))
+                    ((symbol-function 'font-lock-ensure) #'ignore)
+                    ((symbol-function 'textui-layout-widget)
+                     (lambda (widget width)
+                       (push (list width (widget-get widget :pixel-budget)) seen)
+                       "rendered")))
+            (let ((overflow-newline-into-fringe t))
+              (org-table-widget--display-table beg end (selected-window) 80)
+              (should (equal (car seen) '(80 800)))
+              ;; Without either fringe the continuation glyph takes the
+              ;; last column, and the cached full-width layout is dropped.
+              (dolist (without '((0 0 nil nil) (8 0 nil nil) (0 8 nil nil)))
+                (setq fringes without)
+                (org-table-widget--display-table beg end (selected-window) 80)
+                (should (equal (car seen) '(79 790)))))
+            (setq fringes '(8 8 nil nil))
+            (let ((overflow-newline-into-fringe nil))
+              (org-table-widget--display-table beg end (selected-window) 80)
+              (should (equal (car seen) '(79 790))))
+            ;; One layout with and one without the reserved column.
+            (should (= 2 (length seen)))))))))
 
 (ert-deftest org-table-widget-prefix-measures-display-specifications ()
   (org-table-widget-tests--with-org "| a |\n"

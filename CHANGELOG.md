@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Leave out the column Emacs keeps for the continuation glyph when a window
+  lacks a fringe or `overflow-newline-into-fringe` is nil, so full-width tables
+  no longer push their right border onto the next screen line.
+
 - Settle short columns at their natural width before sharing space among
   columns that wrap anyway, so values such as `0.6296 %` or `773.8 m` are no
   longer split while a long text column wraps (#2); spread rounding pixels

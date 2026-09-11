@@ -237,6 +237,17 @@ the `fixed-pitch' font changes."
                   0)))
             '(line-prefix wrap-prefix)))))
 
+(defun org-table-widget--reserves-continuation-p (window)
+  "Return non-nil when WINDOW keeps its last column for a continuation glyph.
+Unless both fringes are shown and `overflow-newline-into-fringe' is
+non-nil, a line as wide as the text area is continued, so a full-width
+table would push its right border onto the next screen line.
+`window-max-chars-per-line' leaves out the same column."
+  (let ((fringes (window-fringes window)))
+    (not (and (bound-and-true-p overflow-newline-into-fringe)
+              (> (nth 0 fringes) 0)
+              (> (nth 1 fringes) 0)))))
+
 (defun org-table-widget--pixel-budget (width window)
   "Return the pixel budget for a table laid out at WIDTH columns in WINDOW.
 WIDTH counts columns of the frame's default font; converting it with
@@ -835,17 +846,22 @@ An edit can move subsequent table starts, so discard all position keys."
     (font-lock-ensure beg end)
     (unless org-table-widget--render-cache
       (setq org-table-widget--render-cache (make-hash-table :test 'eql)))
-    (let* ((prefix-width (org-table-widget--prefix-width beg window))
-           (column-pixels (max 1 (or (ignore-errors (window-font-width window))
+    (let* ((column-pixels (max 1 (or (ignore-errors (window-font-width window))
                                      (frame-char-width (window-frame window)))))
-           (columns (max 1 (- width (ceiling prefix-width column-pixels))))
+           ;; Line prefixes and a reserved continuation column narrow the
+           ;; space the table's lines can use.
+           (inset (+ (org-table-widget--prefix-width beg window)
+                     (if (org-table-widget--reserves-continuation-p window)
+                         column-pixels
+                       0)))
+           (columns (max 1 (- width (ceiling inset column-pixels))))
            (pixel-budget (max 1 (- (org-table-widget--pixel-budget width window)
-                                   prefix-width)))
+                                   inset)))
            (key (list (secure-hash 'sha1 (current-buffer) beg end)
                       ;; Preserve changes to faces, hidden links and other
                       ;; properties even when source characters stay the same.
                       (sxhash-equal-including-properties (buffer-substring beg end))
-                      width (window-body-width window t) prefix-width
+                      width (window-body-width window t) inset
                       (org-table-widget--font-signature window)
                       org-table-widget-use-unicode-borders
                       org-table-widget-zebra-stripe org-table-widget-wrap-columns
