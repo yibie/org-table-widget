@@ -15,3 +15,10 @@
 | Col1 | Col2 | Col3 | Col4 | Col5 | Col6 | Col7 | Col8 | Col9 | Col10 | Col11 | Col12 |
 |------+------+------+------+------+------+------+------+------+------+------+------|
 | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text | 字 text |
+
+# Short numeric columns stay whole beside a long text column (issue #2).
+| sequence  | 100 m    | 200 m    | 400 m                                                   | G path  | spins | portals |
+|-----------+----------+----------+---------------------------------------------------------+---------+-------+---------|
+| kartom-04 | 0.6296 % | 0.3853 % | 0.4070 %                                                | 773.8 m |  6828 |     187 |
+| kartom-05 | 0.8801 % | 0.5603 % | 0.2783 %                                                | 695.1 m |  5834 |     166 |
+| kartom-02 | 0.6750 % | 0.5293 % | this is some longer text that seems to cause trouble    | 290.5 m |  3007 | 69      |

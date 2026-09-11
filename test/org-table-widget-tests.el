@@ -159,12 +159,88 @@
    (let* ((giant (mapconcat #'identity (make-list 100 "lorem") " "))
           (rows `(("id" "status" ,giant)))
           (widths (org-table-widget--widths rows 3 1000 10 nil)))
-     ;; "id" needs 20 + 20 padding, "status" 60 + 20; a column whose
-     ;; natural width equals its minimum keeps weight 1, so it may
-     ;; receive a pixel of the flexible space.
-     (should (<= 40 (nth 0 widths) 42))
-     (should (<= 80 (nth 1 widths) 82))
-     (should (> (nth 2 widths) 800)))))
+     ;; "id" and "status" fit their natural width exactly, since their
+     ;; growth above the minimum is well within the flexible space; the
+     ;; giant column takes what is left over.
+     (should (equal widths '(40 80 840))))))
+
+(defconst org-table-widget-tests--issue-2-rows
+  '(("sequence" "100 m" "200 m" "400 m" "G path" "spins" "portals")
+    hline
+    ("kartom-04" "0.6296 %" "0.3853 %" "0.4070 %" "773.8 m" "6828" "187")
+    ("kartom-05" "0.8801 %" "0.5603 %" "0.2783 %" "695.1 m" "5834" "166")
+    ("kartom-02" "0.6750 %" "0.5293 %"
+     "this is some longer text that seems to cause trouble" "290.5 m"
+     "3007" "69"))
+  "Issue #2 table: short numeric cells beside a long text column.")
+
+(ert-deftest org-table-widget-issue-2-short-numeric-columns-stay-whole ()
+  (org-table-widget-tests--with-pixel-mocks
+   (dolist (case '((800 . (110 100 100 160 90 70 90))
+                   (1000 . (110 100 100 360 90 70 90))
+                   (1100 . (110 100 100 460 90 70 90))))
+     (should (equal (org-table-widget--widths
+                     org-table-widget-tests--issue-2-rows 7 (car case) 10 nil)
+                    (cdr case))))
+   ;; Only 30 px exist above the minimums, too little to settle the
+   ;; short columns at their natural width.
+   (should (equal (org-table-widget--widths
+                   org-table-widget-tests--issue-2-rows 7 700 10 nil)
+                  '(110 82 82 113 73 70 90)))))
+
+(ert-deftest org-table-widget-tight-budget-settles-cheapest-column-only ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((rows `(("ab cd" "abcd efgh" "abcd efgh"
+                   ,(mapconcat #'identity (make-list 10 "word") " "))))
+          (widths (org-table-widget--widths rows 4 410 10 nil)))
+     (should (equal widths '(70 85 85 120))))))
+
+(ert-deftest org-table-widget-two-long-columns-share-evenly ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((a20 (mapconcat #'identity (make-list 20 "alpha") " "))
+          (rows `(("k" ,a20 ,a20)))
+          (widths (org-table-widget--widths rows 3 500 10 nil)))
+     (should (equal widths '(30 215 215))))))
+
+(ert-deftest org-table-widget-rounding-spreads-the-remainder ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((cell (mapconcat #'identity (make-list 8 "ab") " "))
+          (rows (list (list cell cell cell))))
+     (let ((widths (org-table-widget--widths rows 3 270 10 nil)))
+       (should (equal widths '(76 77 77)))
+       (should (= (apply #'+ widths) 230)))
+     (let ((widths (org-table-widget--widths rows 3 260 10 nil)))
+       (should (equal widths '(73 73 74)))
+       (should (= (apply #'+ widths) 220))))))
+
+(ert-deftest org-table-widget-capped-token-does-not-overfeed-short-columns ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((rows '(("supertag-node-delete-everything" "ab cd" "ef gh")))
+          (widths (org-table-widget--widths rows 3 400 10 nil)))
+     ;; The old proportional split over-fed short columns beyond their
+     ;; natural width: (201 79 80).  The capped weight must not do that.
+     (should (equal widths '(220 70 70))))))
+
+(ert-deftest org-table-widget-shares-recompute-after-every-grant ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let ((widths (org-table-widget--widths
+                  '(("ab cd ef g" "abcdefghijklmnop xyz")) 2 350 10 nil)))
+     ;; Granting both columns against shares computed once per pass
+     ;; would return (120 220) = 340, overflowing the 320 available.
+     (should (equal widths '(100 220)))
+     (should (= (apply #'+ widths) 320)))))
+
+(ert-deftest org-table-widget-issue-2-render-keeps-numeric-cells-whole ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((table (list :rows org-table-widget-tests--issue-2-rows
+                       :alignments (make-list 7 'left)
+                       :header-rows 1))
+          (lines (org-table-widget-tests--lines
+                  (org-table-widget--render table nil 100)))
+          (plain (mapconcat #'identity lines "\n")))
+     (should (string-match-p (regexp-quote "0.6296 %") plain))
+     (should (string-match-p (regexp-quote "773.8 m") plain))
+     (should (> (length lines) 7)))))
 
 (ert-deftest org-table-widget-minimum-keeps-unbreakable-token ()
   (org-table-widget-tests--with-pixel-mocks

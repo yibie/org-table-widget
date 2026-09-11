@@ -388,9 +388,14 @@ PIXEL-BUDGET includes the BOUNDARY-PIXELS between columns.
 
 Each column claims a minimum (its widest grapheme, or its widest
 unbreakable token up to the cap) and a natural width (its widest
-cell).  When the natural widths do not fit, the space left after the
-minimums is shared in proportion to each column's natural width above
-its minimum, capped so one giant cell cannot starve the others."
+cell).  When the natural widths do not fit, columns are settled at
+their natural width cheapest first: a column whose growth above its
+minimum fits either an equal share or its proportional share of the
+remaining space keeps its natural width, and the shares are
+recomputed after each one.  The remaining columns wrap regardless;
+they share what is left in proportion to their natural width above
+the minimum, capped so one giant cell cannot starve the others, and
+are rounded so the widths sum exactly to the available pixels."
   (let* ((space-pixels (org-table-widget--char-pixel-width window))
          (base-minimum (+ 1 (* 2 space-pixels)))
          (available (- pixel-budget (* (1+ columns) boundary-pixels)))
@@ -429,24 +434,49 @@ its minimum, capped so one giant cell cannot starve the others."
        ((<= natural-total available) natural)
        ((<= available minimum-total) minimums)
        (t
+        ;; Settle the cheapest columns at their natural width first, so
+        ;; short cells stay whole while a long column wraps anyway.
+        ;; Recompute the shares after every grant: settling a whole pass
+        ;; against stale shares can overflow AVAILABLE.
         (let* ((flexible (- available minimum-total))
+               (growths (seq-mapn #'- natural minimums))
                (weights (seq-mapn (lambda (width minimum)
                                     (max 1 (- (min width cap) minimum)))
                                   natural minimums))
-               (weight-total (apply #'+ weights))
-               (allocated 0)
-               widths)
-          (cl-loop for weight in weights
-                   for minimum in minimums
-                   for column from 0
-                   for column-width =
-                   (if (= column (1- columns))
-                       (- available allocated)
-                     (+ minimum
-                        (floor (* flexible (/ (float weight) weight-total)))))
-                   do (setq allocated (+ allocated column-width))
-                   do (push column-width widths))
-          (nreverse widths)))))))
+               (widths (copy-sequence minimums))
+               ;; `sort' is stable, so equal growths keep column order.
+               (unresolved (sort (number-sequence 0 (1- columns))
+                                 (lambda (a b)
+                                   (< (nth a growths) (nth b growths))))))
+          (cl-flet ((weight-total ()
+                      (apply #'+ (mapcar (lambda (column) (nth column weights))
+                                         unresolved))))
+            (while-let
+                ((column
+                  (let ((count (length unresolved))
+                        (total (weight-total)))
+                    (seq-find (lambda (column)
+                                (<= (nth column growths)
+                                    (max (/ flexible count)
+                                         (/ (* flexible (nth column weights))
+                                            total))))
+                              unresolved))))
+              (setf (nth column widths) (nth column natural))
+              (setq flexible (- flexible (nth column growths))
+                    unresolved (delq column unresolved)))
+            ;; The rest wrap regardless.  Round cumulatively so the widths
+            ;; sum exactly to AVAILABLE instead of the last column taking
+            ;; every leftover pixel.
+            (let ((total (weight-total))
+                  (cumulative 0)
+                  (previous 0))
+              (dolist (column (sort unresolved #'<))
+                (setq cumulative (+ cumulative (nth column weights)))
+                (let ((target (/ (* flexible cumulative) total)))
+                  (setf (nth column widths)
+                        (+ (nth column minimums) (- target previous)))
+                  (setq previous target)))))
+          widths))))))
 
 ;;;; Rendering
 

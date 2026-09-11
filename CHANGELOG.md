@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Settle short columns at their natural width before sharing space among
+  columns that wrap anyway, so values such as `0.6296 %` or `773.8 m` are no
+  longer split while a long text column wraps (#2); spread rounding pixels
+  instead of giving them all to the last column.
+
 - Prevent duplicate table previews after `revert-buffer` reinitializes Org mode;
   release owned overlays, markers and pending relayout before major-mode changes.
 
