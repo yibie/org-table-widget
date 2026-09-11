@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — Edit tables on request
+
+### Changes
 
 - Stop revealing a table's source whenever point passes through it. Point now
   stops on the widget as on a single character, with the cursor on its top-left
@@ -9,6 +11,8 @@
   the source, which is laid out again when point leaves. Searches landing inside
   a table still reveal it. `org-table-widget-reveal-on-point` now defaults to
   nil; set it to `t` for the previous behavior.
+
+### Fixes
 
 - Leave out the column Emacs keeps for the continuation glyph when a window
   lacks a fringe or `overflow-newline-into-fringe` is nil, so full-width tables

@@ -32,7 +32,7 @@ Not on MELPA yet. Install TextUI first, then this package:
 ```elisp
 (require 'package-vc)
 (package-vc-install "https://github.com/yibie/textui")
-(package-vc-install "https://github.com/yibie/org-table-widget" "v0.1.0")
+(package-vc-install "https://github.com/yibie/org-table-widget" "v0.2.0")
 ```
 
 Alternatively, clone both repositories and add their directories manually:
@@ -120,7 +120,7 @@ overlays in that region.
 
 ## Status
 
-**0.1.0 is an early release.** Known limitations:
+**0.2.0 is an early release.** Known limitations:
 
 - Org width cookies are ignored.
 - Very wide tables can overflow the window when minimum column widths do not fit.
