@@ -10,8 +10,9 @@ buffers, powered by [TextUI](https://github.com/yibie/textui).
 - Hide alignment and column-group declaration rows from the rendered table.
 
 Rendering uses overlays, leaving the source table intact for Org editing,
-export, formulas and Babel. Moving point into a table reveals its source;
-moving out renders it again.
+export, formulas and Babel. Point stops on a table as on a single character,
+with the cursor on its top-left corner; press `e` there to reveal the source,
+and move out to render it again.
 
 The cursor-entry correction for moving upward into a table preview is adapted
 from [karthink's org-latex-preview fix](https://github.com/karthink/org-mode/blob/olp/lisp/org-latex-preview.el#L670).
@@ -55,6 +56,11 @@ Use `M-x org-table-widget-mode` to enable or disable it in the current buffer,
 `M-x org-table-widget-toggle` to reveal or render the table at point, and
 `M-x org-table-widget-refresh` to refresh the buffer's tables.
 
+Line and character motion stop on a rendered table and then step past it. With
+point on the table, press `e` (`org-table-widget-edit`) to edit its Org source;
+the table is rendered again once point leaves it. Searches that land inside a
+table reveal it too. Keys on a table come from `org-table-widget-map`.
+
 ### Options
 
 Customize with `M-x customize-group RET org-table-widget RET`.
@@ -66,7 +72,7 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 | `org-table-widget-wrap-columns` | `t` | Wrap cell content; nil uses natural widths. |
 | `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window body width available to the table. |
 | `org-table-widget-relayout-delay` | `0.15` | Idle seconds before resize relayout; zero or negative means immediate. |
-| `org-table-widget-reveal-on-point` | `t` | Reveal source when point enters a table. |
+| `org-table-widget-reveal-on-point` | `nil` | Reveal source as soon as point enters a table, without `e`. |
 | `org-table-widget-cell-properties` | `(face font-lock-face invisible display mouse-face help-echo keymap follow-link htmlize-link org-emphasis)` | Text properties retained in rendered cells. |
 
 ### Compatibility
@@ -77,9 +83,10 @@ Customize with `M-x customize-group RET org-table-widget RET`.
   Org 9.8.7 and org-modern 1.15. A reported load-order conflict has not yet been
   reproduced; please include package versions and a minimal configuration when
   reporting it.
-- **`visual-line-mode`:** Cursor entry is tested with the mode both enabled and
-  disabled: Down reveals the first source row, and Up reveals the last source
-  row. A narrow-window layout smoke test also passed with the mode enabled.
+- **`visual-line-mode`:** Cursor motion is tested with the mode both enabled
+  and disabled: Down and Up stop on the table, then step past it. With
+  `org-table-widget-reveal-on-point`, Down reveals the first source row and Up
+  the last. A narrow-window layout smoke test also passed with the mode enabled.
   This does not eliminate the minimum-width overflow limitation noted below.
 
 ## Compared with valign
@@ -94,7 +101,7 @@ rendering and reveals the source when it is time to edit.
 | --- | --- | --- |
 | Display model | Builds a block widget and covers the source table with an overlay. | Adds display properties and overlays to spaces and separators in the existing table. |
 | Table formats | Org pipe tables. | Org, Markdown and `table.el` tables. |
-| Editing | Reveals the ordinary Org source when point enters the table, then renders it again when point leaves. | Keeps the visually aligned source visible and editable. |
+| Editing | Reveals the ordinary Org source when `e` is pressed on the table, then renders it again when point leaves. | Keeps the visually aligned source visible and editable. |
 | Mixed-width text | Pixel-aligns CJK, Latin text, emoji and inline code inside a fixed-pitch table. | Pixel-aligns the table as displayed, including variable-pitch text, CJK and images. |
 | Narrow windows | Allocates columns within the window budget, wraps cell content and reflows after resizing. | Keeps cells on one source line at their natural width; it does not provide responsive cell wrapping. |
 | Alignment | Supports explicit `<l>`, `<c>` and `<r>` Org cookies, including centered cells. | Infers left or right alignment from the source layout; Markdown center alignment is treated as left alignment. |
@@ -161,9 +168,9 @@ emacs -Q --batch -L . -L ../textui -L test -l org-table-widget.el \
   -f ert-run-tests-batch-and-exit
 ```
 
-The redisplay-dependent motion test is skipped in batch mode. In a graphical
+The redisplay-dependent motion tests are skipped in batch mode. In a graphical
 Emacs, load `test/org-table-widget-tests.el` and run
-`M-x ert RET org-table-widget-reveal-vertical-interactive RET`.
+`M-x ert RET vertical-interactive RET`.
 For the optional org-modern compatibility test, put org-modern and its
 dependencies on `load-path`, load `test/org-table-widget-compat-tests.el`, then
 run `M-x ert RET org-table-widget-compat- RET`.

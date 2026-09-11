@@ -272,7 +272,8 @@
         (switch-to-buffer (current-buffer))
         (org-table-widget-mode 1)
         (unwind-protect
-            (let* ((table (car (org-table-widget--tables)))
+            (let* ((org-table-widget-reveal-on-point t)
+                   (table (car (org-table-widget--tables)))
                    (overlay (org-table-widget--display-table
                              (car table) (cdr table) (selected-window) 80))
                    (this-command (car case)))
@@ -294,7 +295,8 @@
         (switch-to-buffer (current-buffer))
         (org-table-widget-mode 1)
         (unwind-protect
-            (let* ((table (car (org-table-widget--tables)))
+            (let* ((org-table-widget-reveal-on-point t)
+                   (table (car (org-table-widget--tables)))
                    (overlay (org-table-widget--display-table
                              (car table) (cdr table) (selected-window) 80))
                    (this-command command))
@@ -322,7 +324,8 @@
           (goto-char (point-max))
           (org-table-widget-mode 1)
           (unwind-protect
-              (let ((table (car (org-table-widget--tables))))
+              (let ((org-table-widget-reveal-on-point t)
+                    (table (car (org-table-widget--tables))))
                 (unless org-table-widget--overlays
                   (org-table-widget--display-table
                    (car table) (cdr table) (selected-window) 80))
@@ -335,6 +338,142 @@
                 (should (= (line-number-at-pos)
                            (if (eq command 'next-line) 2 4)))
                 (should-not org-table-widget--overlays))
+            (org-table-widget-mode -1)))))))
+
+(ert-deftest org-table-widget-rest-steps-over-widget ()
+  ;; (COMMAND FROM LANDING EXPECTED): where a command left point, and where
+  ;; point settles.  The first case is where display-based Down lands.
+  (dolist (case '((next-line before end start)
+                  (next-line start end end)
+                  (previous-line end start start)
+                  (forward-char start inside end)
+                  (backward-char end inside start)
+                  (next-line before inside start)   ; Logical line motion.
+                  (goto-char end inside start)))
+    (org-table-widget-tests--with-org "Before\n| a |\n| b |\nAfter\n"
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (org-table-widget-mode 1)
+        (unwind-protect
+            (let* ((org-table-widget-reveal-on-point nil)
+                   (table (car (org-table-widget--tables)))
+                   (overlay (org-table-widget--display-table
+                             (car table) (cdr table) (selected-window) 80))
+                   (places `((before . ,(point-min)) (start . ,(car table))
+                             (inside . ,(+ (car table) 3)) (end . ,(cdr table))))
+                   (this-command (nth 0 case)))
+              (goto-char (alist-get (nth 1 case) places))
+              (run-hooks 'pre-command-hook)
+              (goto-char (alist-get (nth 2 case) places))
+              (run-hooks 'post-command-hook)
+              (ert-info ((format "%S" case))
+                (should (= (point) (alist-get (nth 3 case) places)))
+                (should (overlay-buffer overlay))
+                (should-not org-table-widget--inside-table)))
+          (org-table-widget-mode -1))))))
+
+(ert-deftest org-table-widget-rest-reveals-search-match ()
+  (org-table-widget-tests--with-org "Before\n| key |\n| value |\nAfter\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (org-table-widget-mode 1)
+      (unwind-protect
+          (let* ((org-table-widget-reveal-on-point nil)
+                 (table (car (org-table-widget--tables)))
+                 (overlay (org-table-widget--display-table
+                           (car table) (cdr table) (selected-window) 80))
+                 (this-command 'isearch-printing-char))
+            (run-hooks 'pre-command-hook)
+            (search-forward "value")
+            ;; Isearch keeps point on its match by disabling adjustment.
+            (let ((disable-point-adjustment t))
+              (run-hooks 'post-command-hook))
+            (should (looking-back "value" 5))
+            (should-not (overlay-buffer overlay))
+            (should org-table-widget--inside-table))
+        (org-table-widget-mode -1)))))
+
+(ert-deftest org-table-widget-edit-reveals-until-point-leaves ()
+  (org-table-widget-tests--with-org "Before\n| a | b |\n| c | d |\nAfter\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (org-table-widget-tests--with-pixel-mocks
+        (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t)))
+          (let ((org-table-widget-reveal-on-point nil)
+                (org-table-widget-relayout-delay 3600)
+                (start (caar (org-table-widget--tables))))
+            (unwind-protect
+                (progn
+                  (org-table-widget-mode 1)
+                  (goto-char start)
+                  (org-table-widget--post-command)
+                  (should (org-table-widget--overlay-at start))
+                  (should (eq (key-binding "e") #'org-table-widget-edit))
+                  (call-interactively (key-binding "e"))
+                  (should-not org-table-widget--overlays)
+                  (should org-table-widget--inside-table)
+                  (should (= (point) start))
+                  (should-not (eq (key-binding "e") #'org-table-widget-edit))
+                  ;; A relayout while the source is being edited keeps it.
+                  (org-table-widget-refresh)
+                  (should-not org-table-widget--overlays)
+                  (forward-line 1)
+                  (org-table-widget--post-command)
+                  (should-not org-table-widget--overlays)
+                  (goto-char (point-max))
+                  (org-table-widget--post-command)
+                  (should (org-table-widget--overlay-at start))
+                  (should-not org-table-widget--inside-table)
+                  ;; Toggling the revealed source back rests on the widget.
+                  (goto-char start)
+                  (org-table-widget-toggle)
+                  (should-not org-table-widget--overlays)
+                  (forward-line 1)
+                  (org-table-widget-toggle)
+                  (should (= (point) start))
+                  (should (org-table-widget--overlay-at start))
+                  (should-error (progn (goto-char (point-min))
+                                       (org-table-widget-edit))
+                                :type 'user-error)
+                  ;; Enabling with point in the source leaves that table as source.
+                  (org-table-widget-mode -1)
+                  (goto-char (1+ start))
+                  (org-table-widget-mode 1)
+                  (should-not org-table-widget--overlays)
+                  (org-table-widget--post-command)
+                  (goto-char (point-max))
+                  (org-table-widget--post-command)
+                  (should (org-table-widget--overlay-at start)))
+              (org-table-widget-mode -1))))))))
+
+(ert-deftest org-table-widget-rest-vertical-interactive ()
+  ;; Redisplay is required: batch line motion ignores the widget's geometry.
+  (skip-unless (not noninteractive))
+  (dolist (visual '(nil t))
+    (org-table-widget-tests--with-org "Before\n| a |\n| b |\n| c |\nAfter\n"
+      (save-window-excursion
+        (switch-to-buffer (current-buffer))
+        (when visual (visual-line-mode 1))
+        (let ((org-table-widget-reveal-on-point nil))
+          (org-table-widget-mode 1)
+          (unwind-protect
+              (let* ((table (car (org-table-widget--tables)))
+                     (overlay (or (org-table-widget--overlay-at (car table))
+                                  (org-table-widget--display-table
+                                   (car table) (cdr table) (selected-window) 80)))
+                     stops)
+                (goto-char (point-min))
+                (dolist (command '(next-line next-line previous-line previous-line))
+                  (redisplay t)
+                  (let ((this-command command))
+                    (run-hooks 'pre-command-hook)
+                    (call-interactively command)
+                    (run-hooks 'post-command-hook))
+                  (push (point) stops))
+                (should (equal (nreverse stops)
+                               (list (car table) (cdr table)
+                                     (car table) (point-min))))
+                (should (overlay-buffer overlay)))
             (org-table-widget-mode -1)))))))
 
 (ert-deftest org-table-widget-tables-skips-table-el ()
@@ -372,12 +511,16 @@
                                               (overlay (org-table-widget--display-table
                                                         (point-min) (point-max) (selected-window) 80))
                                               (rendered (overlay-get overlay 'before-string)))
-                                         (should (equal (overlay-get overlay 'display) ""))
+                                         ;; Point can rest only before a non-empty replacement.
+                                         (should (equal (overlay-get overlay 'display)
+                                                        (if (string-suffix-p "\n" source) "\n" " ")))
                                          (should (stringp rendered))
                                          (should (text-property-any 0 (length rendered)
                                                                     'org-table-widget-spacing t rendered))
-                                         (should (eq (string-suffix-p "\n" rendered)
-                                                     (string-suffix-p "\n" source)))
+                                         (should-not (string-suffix-p "\n" rendered))
+                                         (should (get-text-property 0 'cursor rendered))
+                                         (should (eq (overlay-get overlay 'keymap)
+                                                     org-table-widget-map))
                                          (should (= (length org-table-widget--overlays) 1))
                                          (should (eq overlay (org-table-widget--overlay-at (point-min))))
                                          (should (eq overlay (org-table-widget--overlay-at (1- (point-max)))))
@@ -400,6 +543,7 @@
                                          (set-buffer-modified-p nil)
                                          (let ((before (buffer-string))
                                                (undo buffer-undo-list)
+                                               (org-table-widget-reveal-on-point t)
                                                (org-table-widget-relayout-delay 0))
                                            (unwind-protect
                                                (progn
@@ -527,6 +671,7 @@
             (width 80)
             (font 1)
             (layout (symbol-function 'textui-layout-widget))
+            (org-table-widget-reveal-on-point t)
             (org-table-widget-relayout-delay 3600))
         (org-table-widget-tests--with-pixel-mocks
           (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) t))

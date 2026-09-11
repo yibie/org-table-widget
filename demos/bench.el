@@ -136,7 +136,7 @@
             (goto-char beg)
             (org-table-widget-bench--log
              "enter=%S" (benchmark-run 1
-                          (when enabled (org-table-widget--post-command))))
+                          (when enabled (org-table-widget-edit))))
             (goto-char (point-min))
             (org-table-widget-bench--log
              "leave=%S" (benchmark-run 1

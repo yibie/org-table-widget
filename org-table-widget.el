@@ -35,9 +35,11 @@
 ;; The buffer text is never modified.  Each table is covered by an
 ;; overlay whose `before-string' holds the laid-out widget, so
 ;; `org-element', export, `#+TBLFM' evaluation and Babel keep seeing
-;; the original table.  Moving point into a table removes its widget
-;; and reveals the source for ordinary `org-table' editing; moving
-;; point out of the table lays it out again.
+;; the original table.  Point stops on a widget as on a single
+;; character; pressing `e' there removes the widget and reveals the
+;; source for ordinary `org-table' editing, and moving point out of
+;; the table lays it out again.  Set `org-table-widget-reveal-on-point'
+;; to reveal the source as soon as point enters a table instead.
 ;;
 ;; Cell contents are copied from the fontified buffer, so links,
 ;; emphasis and code markup keep the faces Org gives them.
@@ -90,9 +92,11 @@ waiting until they stop produces one relayout instead of one per step.
 A value of zero or less relays out immediately."
   :type 'number)
 
-(defcustom org-table-widget-reveal-on-point t
-  "When non-nil, show a table's source while point is inside it.
-The widget returns as soon as point leaves the table."
+(defcustom org-table-widget-reveal-on-point nil
+  "When non-nil, show a table's source as soon as point enters it.
+When nil, point stops on a table's widget as on a single character,
+and \\<org-table-widget-map>\\[org-table-widget-edit] there shows the source.  Either way the widget
+returns as soon as point leaves the table."
   :type 'boolean)
 
 (defcustom org-table-widget-cell-properties
@@ -786,6 +790,10 @@ the region holds no data rows."
 
 ;;;; Overlays
 
+(defvar-keymap org-table-widget-map
+  :doc "Keymap active while point is on a table widget."
+  "e" #'org-table-widget-edit)
+
 (defvar-local org-table-widget--overlays nil
   "Overlays displaying table widgets in the current buffer.")
 
@@ -895,11 +903,11 @@ An edit can move subsequent table starts, so discard all position keys."
         (when-let* ((table (org-table-widget--parse beg end)))
           (let* ((widget (widget-convert 'org-table-widget :value table
                                          :window window :pixel-budget pixel-budget))
-                 (rendered (textui-layout-widget widget columns)))
-            (setq cached (list key widget
-                               (if (eq (char-before end) ?\n)
-                                   (concat rendered "\n")
-                                 rendered)))))
+                 (rendered (copy-sequence (textui-layout-widget widget columns))))
+            ;; Draw the cursor on the top-left corner while point rests
+            ;; at the start of the table.
+            (put-text-property 0 1 'cursor t rendered)
+            (setq cached (list key widget rendered))))
         (puthash beg cached org-table-widget--render-cache))
       (when cached
         (let ((widget (nth 1 cached))
@@ -907,8 +915,12 @@ An edit can move subsequent table starts, so discard all position keys."
           (widget-put widget :window window)
           (overlay-put overlay 'org-table-widget widget)
           ;; Unlike replacement strings, before-strings honor pixel spaces.
-          (overlay-put overlay 'display "")
           (overlay-put overlay 'before-string (nth 2 cached))
+          ;; Point cannot rest where an empty replacement starts, so the
+          ;; table's final newline, or a space, replaces the source.
+          (overlay-put overlay 'display
+                       (if (eq (char-before end) ?\n) "\n" " "))
+          (overlay-put overlay 'keymap org-table-widget-map)
           (overlay-put overlay 'evaporate t)
           (overlay-put overlay 'modification-hooks
                        (list #'org-table-widget--modified))
@@ -922,10 +934,19 @@ An edit can move subsequent table starts, so discard all position keys."
   (mapc #'delete-overlay org-table-widget--overlays)
   (setq org-table-widget--overlays nil))
 
+(defun org-table-widget--editing-p (table point)
+  "Return non-nil when POINT is in the source of TABLE, a (BEG . END) cons.
+Point at the start of a table rests on its widget instead, unless the
+table is revealed or `org-table-widget-reveal-on-point' is non-nil."
+  (and (>= point (car table))
+       (< point (cdr table))
+       (or org-table-widget-reveal-on-point
+           org-table-widget--inside-table
+           (> point (car table)))))
+
 (defun org-table-widget-refresh ()
   "Lay out every table in the current buffer as a widget.
-A table containing point is left as source when
-`org-table-widget-reveal-on-point' is non-nil."
+The table point is editing is left as source."
   (interactive)
   (org-table-widget--cancel-relayout)
   (org-table-widget--clear)
@@ -935,9 +956,7 @@ A table containing point is left as source when
             (point (point)))
         (save-excursion
           (dolist (table (org-table-widget--tables))
-            (unless (and org-table-widget-reveal-on-point
-                         (>= point (car table))
-                         (< point (cdr table)))
+            (unless (org-table-widget--editing-p table point)
               (org-table-widget--display-table (car table) (cdr table)
                                                window width))))
         (setq org-table-widget--width width)))))
@@ -952,9 +971,7 @@ A table containing point is left as source when
         (save-excursion
           (dolist (table (org-table-widget--tables))
             (unless (or (org-table-widget--overlay-at (car table))
-                        (and org-table-widget-reveal-on-point
-                             (>= point (car table))
-                             (< point (cdr table))))
+                        (org-table-widget--editing-p table point))
               (org-table-widget--display-table (car table) (cdr table)
                                                window width))))))))
 
@@ -992,64 +1009,101 @@ A table containing point is left as source when
       (org-table-widget--schedule-relayout))))
 
 (defun org-table-widget--pre-command ()
-  "Record point so the direction of entry into a preview can be recognized."
-  (when org-table-widget-reveal-on-point
-    (set-marker org-table-widget--previous-point (point))))
+  "Record point so the direction of motion onto a widget can be recognized."
+  (set-marker org-table-widget--previous-point (point)))
+
+(defun org-table-widget--reveal (overlay)
+  "Remove widget OVERLAY so the source of its table can be edited."
+  (org-table-widget--remove-overlay overlay)
+  (setq org-table-widget--inside-table t))
+
+(defun org-table-widget--leave ()
+  "Lay out the tables revealed while point was in their source."
+  (when org-table-widget--inside-table
+    (setq org-table-widget--inside-table nil)
+    (org-table-widget--display-missing)))
+
+(defun org-table-widget--settle (overlay previous)
+  "Move point out of the source hidden by widget OVERLAY, or reveal it.
+Point may rest at the start of OVERLAY, where the cursor is drawn on
+the widget.  PREVIOUS is point before the command.  Return non-nil
+when OVERLAY was revealed."
+  (let ((start (overlay-start overlay)))
+    (cond
+     ((= (point) start) nil)
+     ;; Searches put point on a match on purpose: show the match.
+     ((or disable-point-adjustment global-disable-point-adjustment)
+      (org-table-widget--reveal overlay)
+      t)
+     ;; Moving forward off the widget steps over the whole table.
+     ((eql previous start)
+      (goto-char (overlay-end overlay))
+      nil)
+     ;; Any other motion into the table stops on the widget.
+     (t
+      (goto-char start)
+      nil))))
 
 (defun org-table-widget--post-command ()
-  "Reveal the table under point and restore widgets point has left."
-  (when org-table-widget-reveal-on-point
-    (let ((vertical-motion
-           (and (memq this-command '(previous-line next-line))
-                line-move-visual
-                org-table-widget--previous-point
-                (marker-position org-table-widget--previous-point)))
-          (overlay (org-table-widget--overlay-at (point))))
-      ;; Down can skip the entire replacement and land just past its end.
-      (when (and (not overlay) vertical-motion (> (point) (point-min)))
-        (let ((crossed (org-table-widget--overlay-at (1- (point)))))
-          (when (and crossed
-                     (= (point) (overlay-end crossed))
-                     (< org-table-widget--previous-point (overlay-start crossed)))
-            (setq overlay crossed)
-            (goto-char (overlay-start overlay)))))
-      (cond
-       (overlay
-        ;; Display-based vertical motion can land at the start of the whole
-        ;; preview even when entering from below (as in org-latex-preview).
-        ;; Do not redirect searches or other explicit jumps into the table.
-        (when (and vertical-motion
-                   (= (point) (overlay-start overlay))
-                   (>= org-table-widget--previous-point (overlay-end overlay)))
-          ;; Table overlays include the final newline, unlike LaTeX previews.
-          (goto-char (1- (overlay-end overlay)))
-          (beginning-of-line))
-        (org-table-widget--remove-overlay overlay)
-        (setq org-table-widget--inside-table t))
-       ((and org-table-widget--inside-table
-             (not (org-at-table-p)))
-        (setq org-table-widget--inside-table nil)
-        (org-table-widget--display-missing))
-       ((org-at-table-p)
-        (setq org-table-widget--inside-table t))))))
+  "Keep point and table widgets in step after a command.
+Point stops on widgets unless `org-table-widget-reveal-on-point' is
+non-nil, in which case entering a table reveals its source.  Leaving
+a revealed table lays it out again."
+  (let* ((previous (and org-table-widget--previous-point
+                        (marker-position org-table-widget--previous-point)))
+         (vertical-motion (and (memq this-command '(previous-line next-line))
+                               previous))
+         (overlay (org-table-widget--overlay-at (point))))
+    ;; Down can skip the entire widget and land just past its end.
+    (when (and (not overlay) vertical-motion (> (point) (point-min)))
+      (let ((crossed (org-table-widget--overlay-at (1- (point)))))
+        (when (and crossed
+                   (= (point) (overlay-end crossed))
+                   (< previous (overlay-start crossed)))
+          (setq overlay crossed)
+          (goto-char (overlay-start overlay)))))
+    (cond
+     ((and overlay org-table-widget-reveal-on-point)
+      ;; Display-based vertical motion can land at the start of the whole
+      ;; preview even when entering from below (as in org-latex-preview).
+      ;; Do not redirect searches or other explicit jumps into the table.
+      (when (and vertical-motion
+                 (= (point) (overlay-start overlay))
+                 (>= previous (overlay-end overlay)))
+        ;; Table overlays include the final newline, unlike LaTeX previews.
+        (goto-char (1- (overlay-end overlay)))
+        (beginning-of-line))
+      (org-table-widget--reveal overlay))
+     (overlay
+      (unless (org-table-widget--settle overlay previous)
+        (org-table-widget--leave)))
+     ((org-at-table-p)
+      (setq org-table-widget--inside-table t))
+     (t (org-table-widget--leave)))))
+
+(defun org-table-widget-edit ()
+  "Show the Org source of the table under the widget at point.
+The widget returns when point leaves the table."
+  (interactive)
+  (if-let* ((overlay (org-table-widget--overlay-at (point))))
+      (org-table-widget--reveal overlay)
+    (user-error "No table widget at point")))
 
 (defun org-table-widget-toggle ()
   "Toggle the widget for the table at point."
   (interactive)
   (let ((overlay (org-table-widget--overlay-at (point))))
     (cond
-     (overlay
-      (org-table-widget--remove-overlay overlay)
-      (setq org-table-widget--inside-table t))
+     (overlay (org-table-widget--reveal overlay))
      ((org-at-table-p)
       (let ((window (org-table-widget--window)))
         (when (window-live-p window)
-          (let ((org-table-widget-reveal-on-point nil)
-                (beg (org-table-begin))
+          (let ((beg (org-table-begin))
                 (end (org-table-end)))
             (org-table-widget--display-table
              beg end window (org-table-widget--layout-width window))
-            (goto-char end)
+            ;; Rest on the widget unless entering the table reveals it.
+            (goto-char (if org-table-widget-reveal-on-point end beg))
             (setq org-table-widget--inside-table nil)))))
      (t (user-error "Not at an Org table")))))
 
@@ -1061,7 +1115,9 @@ A table containing point is left as source when
 (define-minor-mode org-table-widget-mode
   "Show Org tables as responsive pixel-aligned widgets.
 The buffer text is left untouched; each table is covered by an overlay
-displaying its widget.  Moving point into a table reveals its source."
+displaying its widget.  Point stops on a widget as on a single
+character; \\<org-table-widget-map>\\[org-table-widget-edit] there reveals the table's source, which is
+laid out again when point leaves it."
   :lighter " OTW"
   (if org-table-widget-mode
       (progn

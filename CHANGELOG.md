@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Stop revealing a table's source whenever point passes through it. Point now
+  stops on the widget as on a single character, with the cursor on its top-left
+  corner, and steps past it on the next motion. Press `e`
+  (`org-table-widget-edit`, bound in the new `org-table-widget-map`) to edit
+  the source, which is laid out again when point leaves. Searches landing inside
+  a table still reveal it. `org-table-widget-reveal-on-point` now defaults to
+  nil; set it to `t` for the previous behavior.
+
 - Leave out the column Emacs keeps for the continuation glyph when a window
   lacks a fringe or `overflow-newline-into-fringe` is nil, so full-width tables
   no longer push their right border onto the next screen line.

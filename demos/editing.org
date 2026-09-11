@@ -1,6 +1,6 @@
-#+title: Reveal-on-point editing flow
+#+title: Editing flow
 # 1. Enable org-table-widget-mode with point on this comment.
-# 2. Enter the table: source should reappear without an undo entry.
+# 2. Down stops on the widget. Press e: source reappears without an undo entry.
 # 3. Edit a cell, TAB to the next cell, RET for the next row.
 # 4. C-c C-c to align; recalculate via C-c C-c on the TBLFM line.
 # 5. M-<right> moves the column. Check the formula references afterward.
