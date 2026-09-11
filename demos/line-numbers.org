@@ -1,0 +1,109 @@
+#+title: Line numbers and fringes
+# Turn on display-line-numbers-mode, hide the fringes with
+# (set-window-fringes nil 0 0), then scroll to the end.  Every table must keep
+# its right border on the same screen line, including the last one, where the
+# line numbers need one more digit than near the top of the buffer.
+
+| Topic             | Long description | URL |
+|-------------------+------------------+-----|
+| Responsive layout | This cell intentionally contains a long English sentence so that it wraps over several lines and fills the width of the window. | https://example.org/averylongunbreakablepathabcdefghijklmnopqrstuvwxyz0123456789 |
+| Source fidelity   | The visual widget is an overlay: edits, export, formulas, and version control continue to use the underlying Org table. | [[https://example.org/very/long/path][A deliberately long link]] |
+
+Filler line 12 keeps the last table below line 100.
+Filler line 13 keeps the last table below line 100.
+Filler line 14 keeps the last table below line 100.
+Filler line 15 keeps the last table below line 100.
+Filler line 16 keeps the last table below line 100.
+Filler line 17 keeps the last table below line 100.
+Filler line 18 keeps the last table below line 100.
+Filler line 19 keeps the last table below line 100.
+Filler line 20 keeps the last table below line 100.
+Filler line 21 keeps the last table below line 100.
+Filler line 22 keeps the last table below line 100.
+Filler line 23 keeps the last table below line 100.
+Filler line 24 keeps the last table below line 100.
+Filler line 25 keeps the last table below line 100.
+Filler line 26 keeps the last table below line 100.
+Filler line 27 keeps the last table below line 100.
+Filler line 28 keeps the last table below line 100.
+Filler line 29 keeps the last table below line 100.
+Filler line 30 keeps the last table below line 100.
+Filler line 31 keeps the last table below line 100.
+Filler line 32 keeps the last table below line 100.
+Filler line 33 keeps the last table below line 100.
+Filler line 34 keeps the last table below line 100.
+Filler line 35 keeps the last table below line 100.
+Filler line 36 keeps the last table below line 100.
+Filler line 37 keeps the last table below line 100.
+Filler line 38 keeps the last table below line 100.
+Filler line 39 keeps the last table below line 100.
+Filler line 40 keeps the last table below line 100.
+Filler line 41 keeps the last table below line 100.
+Filler line 42 keeps the last table below line 100.
+Filler line 43 keeps the last table below line 100.
+Filler line 44 keeps the last table below line 100.
+Filler line 45 keeps the last table below line 100.
+Filler line 46 keeps the last table below line 100.
+Filler line 47 keeps the last table below line 100.
+Filler line 48 keeps the last table below line 100.
+Filler line 49 keeps the last table below line 100.
+Filler line 50 keeps the last table below line 100.
+Filler line 51 keeps the last table below line 100.
+Filler line 52 keeps the last table below line 100.
+Filler line 53 keeps the last table below line 100.
+Filler line 54 keeps the last table below line 100.
+Filler line 55 keeps the last table below line 100.
+Filler line 56 keeps the last table below line 100.
+Filler line 57 keeps the last table below line 100.
+Filler line 58 keeps the last table below line 100.
+Filler line 59 keeps the last table below line 100.
+Filler line 60 keeps the last table below line 100.
+Filler line 61 keeps the last table below line 100.
+Filler line 62 keeps the last table below line 100.
+Filler line 63 keeps the last table below line 100.
+Filler line 64 keeps the last table below line 100.
+Filler line 65 keeps the last table below line 100.
+Filler line 66 keeps the last table below line 100.
+Filler line 67 keeps the last table below line 100.
+Filler line 68 keeps the last table below line 100.
+Filler line 69 keeps the last table below line 100.
+Filler line 70 keeps the last table below line 100.
+Filler line 71 keeps the last table below line 100.
+Filler line 72 keeps the last table below line 100.
+Filler line 73 keeps the last table below line 100.
+Filler line 74 keeps the last table below line 100.
+Filler line 75 keeps the last table below line 100.
+Filler line 76 keeps the last table below line 100.
+Filler line 77 keeps the last table below line 100.
+Filler line 78 keeps the last table below line 100.
+Filler line 79 keeps the last table below line 100.
+Filler line 80 keeps the last table below line 100.
+Filler line 81 keeps the last table below line 100.
+Filler line 82 keeps the last table below line 100.
+Filler line 83 keeps the last table below line 100.
+Filler line 84 keeps the last table below line 100.
+Filler line 85 keeps the last table below line 100.
+Filler line 86 keeps the last table below line 100.
+Filler line 87 keeps the last table below line 100.
+Filler line 88 keeps the last table below line 100.
+Filler line 89 keeps the last table below line 100.
+Filler line 90 keeps the last table below line 100.
+Filler line 91 keeps the last table below line 100.
+Filler line 92 keeps the last table below line 100.
+Filler line 93 keeps the last table below line 100.
+Filler line 94 keeps the last table below line 100.
+Filler line 95 keeps the last table below line 100.
+Filler line 96 keeps the last table below line 100.
+Filler line 97 keeps the last table below line 100.
+Filler line 98 keeps the last table below line 100.
+Filler line 99 keeps the last table below line 100.
+Filler line 100 keeps the last table below line 100.
+Filler line 101 keeps the last table below line 100.
+Filler line 102 keeps the last table below line 100.
+Filler line 103 keeps the last table below line 100.
+Filler line 104 keeps the last table below line 100.
+
+| Topic        | Long description | URL |
+|--------------+------------------+-----|
+| Line numbers | Past line 100 the line numbers need three digits, so a table laid out near the top of the buffer must already leave room for them. | https://example.org/three-digit-line-numbers-need-one-more-column |
+| Fringes      | Without fringes Emacs keeps the last column of every screen line for the continuation glyph, so a full-width table would lose its right border. | https://example.org/continuation-glyph |

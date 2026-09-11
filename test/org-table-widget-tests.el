@@ -623,6 +623,22 @@
             (should (eq undo buffer-undo-list))
             (should-not (buffer-modified-p))))))))
 
+(ert-deftest org-table-widget-measure-ignores-line-numbers ()
+  (with-temp-buffer
+    (insert "Source\n")
+    (setq-local display-line-numbers t)
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let (numbers)
+        (cl-letf (((symbol-function 'window-text-pixel-size)
+                   (lambda (&rest _)
+                     (push display-line-numbers numbers)
+                     '(10 . 10))))
+          (should (= 10 (org-table-widget--measure-string "probe"
+                                                          (selected-window))))
+          (should (equal numbers '(nil)))
+          (should (eq display-line-numbers t)))))))
+
 (ert-deftest org-table-widget-prefix-reduces-layout-budgets-and-invalidates-cache ()
   (require 'textui)
   (org-table-widget-tests--with-org "| a | b |\n"
@@ -692,6 +708,60 @@
               (should (equal (car seen) '(79 790))))
             ;; One layout with and one without the reserved column.
             (should (= 2 (length seen)))))))))
+
+(ert-deftest org-table-widget-line-numbers-reduce-layout-budget ()
+  (require 'textui)
+  (org-table-widget-tests--with-org "| a | b |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((beg (point-min)) (end (point-max))
+            (numbers '(50 . 3)) (body-height 20) seen)
+        (org-table-widget-tests--with-pixel-mocks
+          (cl-letf (((symbol-function 'window-font-width) (lambda (&rest _) 10))
+                    ((symbol-function 'org-table-widget--reserves-continuation-p)
+                     #'ignore)
+                    ((symbol-function 'line-number-display-width)
+                     (lambda (&optional pixelwise)
+                       (if pixelwise (car numbers) (cdr numbers))))
+                    ((symbol-function 'window-body-height)
+                     (lambda (&rest _) body-height))
+                    ((symbol-function 'font-lock-ensure) #'ignore)
+                    ((symbol-function 'textui-layout-widget)
+                     (lambda (widget width)
+                       (push (list width (widget-get widget :pixel-budget)) seen)
+                       "rendered")))
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(80 800)))
+            (setq-local display-line-numbers t)
+            ;; Three digits and two blanks of 10 px each; no reachable line
+            ;; (2 + 20 + 5) needs more digits.
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(75 750)))
+            ;; Two digits fit the current window start, but scrolling can
+            ;; reach line 2 + 93 + 5 = 100: reserve five 12 px glyphs.
+            (setq numbers '(48 . 2) body-height 93)
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(74 740)))
+            (setq-local display-line-numbers nil)
+            (org-table-widget--display-table beg end (selected-window) 80)
+            (should (equal (car seen) '(80 800)))))))))
+
+(ert-deftest org-table-widget-line-number-toggle-schedules-relayout ()
+  (org-table-widget-tests--with-org "| a |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((org-table-widget-relayout-delay 3600))
+        (org-table-widget-mode 1)
+        (unwind-protect
+            (progn
+              (should-not org-table-widget--timer)
+              (display-line-numbers-mode 1)
+              (should org-table-widget--timer))
+          (display-line-numbers-mode -1)
+          (org-table-widget-mode -1))
+        (should-not org-table-widget--timer)
+        (should-not (memq #'org-table-widget--schedule-relayout
+                          display-line-numbers-mode-hook))))))
 
 (ert-deftest org-table-widget-prefix-measures-display-specifications ()
   (org-table-widget-tests--with-org "| a |\n"

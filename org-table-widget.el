@@ -157,7 +157,9 @@ STR is pinned to `fixed-pitch' so the result does not depend on
             (modified (buffer-modified-p))
             (deactivate-mark nil)
             (line-prefix nil)
-            (wrap-prefix nil))
+            (wrap-prefix nil)
+            ;; Otherwise the probe's pixel size includes the number area.
+            (display-line-numbers nil))
         (save-excursion
           (save-restriction
             (widen)
@@ -247,6 +249,25 @@ table would push its right border onto the next screen line.
     (not (and (bound-and-true-p overflow-newline-into-fringe)
               (> (nth 0 fringes) 0)
               (> (nth 1 fringes) 0)))))
+
+(defun org-table-widget--line-number-width (window)
+  "Return the pixels line numbers take at the start of WINDOW's lines.
+Redisplay sizes the number area for the largest line number its rows
+could reach from the window start, so the area widens as WINDOW scrolls
+down.  Leave room for the widest it can become."
+  (with-current-buffer (window-buffer window)
+    (if (not display-line-numbers)
+        0
+      (with-selected-window window
+        (let* ((pixels (line-number-display-width t))
+               (digits (line-number-display-width))
+               ;; Redisplay rows add a partial line at each edge and
+               ;; the tab, header and mode lines to the body lines.
+               (largest (+ (line-number-at-pos (point-max) t)
+                           (window-body-height window) 5))
+               (widest (max digits (length (number-to-string largest)))))
+          ;; The digits and the blank on each side are glyphs of one width.
+          (ceiling (* pixels (+ widest 2)) (+ digits 2)))))))
 
 (defun org-table-widget--pixel-budget (width window)
   "Return the pixel budget for a table laid out at WIDTH columns in WINDOW.
@@ -848,9 +869,10 @@ An edit can move subsequent table starts, so discard all position keys."
       (setq org-table-widget--render-cache (make-hash-table :test 'eql)))
     (let* ((column-pixels (max 1 (or (ignore-errors (window-font-width window))
                                      (frame-char-width (window-frame window)))))
-           ;; Line prefixes and a reserved continuation column narrow the
-           ;; space the table's lines can use.
+           ;; Line prefixes, line numbers and a reserved continuation
+           ;; column narrow the space the table's lines can use.
            (inset (+ (org-table-widget--prefix-width beg window)
+                     (org-table-widget--line-number-width window)
                      (if (org-table-widget--reserves-continuation-p window)
                          column-pixels
                        0)))
@@ -1063,6 +1085,8 @@ displaying its widget.  Moving point into a table reveals its source."
                   #'org-table-widget--window-changed nil t)
         (add-hook 'text-scale-mode-hook #'org-table-widget--schedule-relayout
                   nil t)
+        (add-hook 'display-line-numbers-mode-hook
+                  #'org-table-widget--schedule-relayout nil t)
         (org-table-widget-refresh))
     (remove-hook 'change-major-mode-hook
                  #'org-table-widget--before-major-mode-change t)
@@ -1077,6 +1101,8 @@ displaying its widget.  Moving point into a table reveals its source."
     (remove-hook 'window-configuration-change-hook
                  #'org-table-widget--window-changed t)
     (remove-hook 'text-scale-mode-hook #'org-table-widget--schedule-relayout t)
+    (remove-hook 'display-line-numbers-mode-hook
+                 #'org-table-widget--schedule-relayout t)
     (org-table-widget--cancel-relayout)
     (org-table-widget--clear)))
 

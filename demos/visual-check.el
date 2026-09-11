@@ -183,6 +183,58 @@
       (with-current-buffer buffer (org-table-widget-mode -1))
       (kill-buffer buffer))))
 
+(defun org-table-widget-visual--height (overlay truncate)
+  "Return the pixel height of widget OVERLAY with `truncate-lines' TRUNCATE."
+  (let ((truncate-lines truncate))
+    (cdr (window-text-pixel-size nil (overlay-start overlay)
+                                 (overlay-end overlay)))))
+
+(defun org-table-widget-visual--wrapped-tables ()
+  "Return the indexes of widgets whose lines wrap in the selected window.
+A widget that fits keeps its height when lines may not wrap.  The display
+iterator draws line numbers and keeps the continuation column exactly as
+redisplay does; starting at the table, it sizes the number area for the
+table's own line, which makes this check pessimistic."
+  (cl-loop for overlay in (sort (copy-sequence org-table-widget--overlays)
+                                (lambda (a b)
+                                  (< (overlay-start a) (overlay-start b))))
+           for index from 1
+           unless (= (org-table-widget-visual--height overlay nil)
+                     (org-table-widget-visual--height overlay t))
+           collect index))
+
+(defun org-table-widget-visual--gutter-check (name width)
+  "Check that widgets in demo NAME fit beside line numbers and without fringes.
+Lay the tables out in a frame WIDTH pixels wide for every combination."
+  (set-frame-size nil width 800 t)
+  (let ((buffer (find-file-noselect
+                 (expand-file-name name org-table-widget-visual--directory))))
+    (unwind-protect
+        (with-current-buffer buffer
+          (switch-to-buffer buffer)
+          (goto-char (point-min))
+          (setq-local org-table-widget-relayout-delay 3600)
+          (org-table-widget-mode 1)
+          (pcase-dolist (`(,fringe ,numbers) '((8 nil) (0 nil) (8 t) (0 t)))
+            (set-window-fringes nil fringe fringe)
+            (display-line-numbers-mode (if numbers 1 -1))
+            (org-table-widget-refresh)
+            (redisplay t)
+            (let ((wrapped (org-table-widget-visual--wrapped-tables)))
+              (org-table-widget-visual--log
+               "GUTTER %s frame=%d fringes=%d numbers=%S width=%S wrapped=%S"
+               name width fringe numbers
+               (and numbers (line-number-display-width t)) wrapped)
+              (when wrapped
+                (org-table-widget-visual--log
+                 "FAIL GUTTER %s frame=%d fringes=%d numbers=%S tables=%S"
+                 name width fringe numbers wrapped)))))
+      (with-current-buffer buffer
+        (display-line-numbers-mode -1)
+        (set-window-fringes nil nil nil)
+        (org-table-widget-mode -1))
+      (kill-buffer buffer))))
+
 (defun org-table-widget-visual-main ()
   "Capture all non-huge demos and check pixel geometry in GUI Emacs."
   (condition-case err
@@ -202,6 +254,10 @@
         (dolist (columns '(60 80 120))
           (org-table-widget-visual--file "narrow-window.org"
                                          (* columns (frame-char-width))))
+        ;; Full-width tables beside line numbers and without fringes; the
+        ;; last table of line-numbers.org sits where numbers need three digits.
+        (org-table-widget-visual--gutter-check "narrow-window.org" 700)
+        (org-table-widget-visual--gutter-check "line-numbers.org" 1000)
         (org-table-widget-visual--log "COMPLETE"))
     (error (org-table-widget-visual--log "ERROR %S" err)))
   (kill-emacs))

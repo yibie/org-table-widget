@@ -6,6 +6,11 @@
   lacks a fringe or `overflow-newline-into-fringe` is nil, so full-width tables
   no longer push their right border onto the next screen line.
 
+- Support `display-line-numbers-mode`: measure cells without the line-number
+  area, which had inflated every width and broke borders; leave room for the
+  widest line numbers scrolling can bring into view; and lay tables out again
+  when the mode is toggled.
+
 - Settle short columns at their natural width before sharing space among
   columns that wrap anyway, so values such as `0.6296 %` or `773.8 m` are no
   longer split while a long text column wraps (#2); spread rounding pixels
