@@ -32,14 +32,16 @@
 ;; proportional fonts stay aligned, long cells wrap inside their
 ;; column, and the table reflows when the window width changes.
 ;;
-;; The buffer text is never modified.  Each table is covered by an
-;; overlay whose `before-string' holds the laid-out widget, so
-;; `org-element', export, `#+TBLFM' evaluation and Babel keep seeing
-;; the original table.  Point stops on a widget as on a single
-;; character; pressing `e' there removes the widget and reveals the
-;; source for ordinary `org-table' editing, and moving point out of
-;; the table lays it out again.  Set `org-table-widget-reveal-on-point'
-;; to reveal the source as soon as point enters a table instead.
+;; The buffer text is never modified.  Each row of a table is covered
+;; by an overlay whose `before-string' holds that row of the laid-out
+;; widget, so `org-element', export, `#+TBLFM' evaluation and Babel
+;; keep seeing the original table.  Point stops on each row of a widget
+;; as on a single character, so line motion walks through long tables
+;; and scrolling shows them whole; pressing `e' there removes the
+;; widget and reveals the source for ordinary `org-table' editing, and
+;; moving point out of the table lays it out again.  Set
+;; `org-table-widget-reveal-on-point' to reveal the source as soon as
+;; point enters a table instead.
 ;;
 ;; Cell contents are copied from the fontified buffer, so links,
 ;; emphasis and code markup keep the faces Org gives them.
@@ -94,8 +96,8 @@ A value of zero or less relays out immediately."
 
 (defcustom org-table-widget-reveal-on-point nil
   "When non-nil, show a table's source as soon as point enters it.
-When nil, point stops on a table's widget as on a single character,
-and \\<org-table-widget-map>\\[org-table-widget-edit] there shows the source.  Either way the widget
+When nil, point stops on each row of a table's widget as on a single
+character, and \\<org-table-widget-map>\\[org-table-widget-edit] there shows the source.  Either way the widget
 returns as soon as point leaves the table."
   :type 'boolean)
 
@@ -608,12 +610,23 @@ BOUNDARY-PIXELS is the uniform advance of every vertical border."
               lines)))
     (string-join (nreverse lines) "\n")))
 
+(defun org-table-widget--source-line (string line)
+  "Mark STRING as drawn for source LINE and return it.
+LINE is an offset from the first line of the table, or nil."
+  (when line
+    (put-text-property 0 (length string) 'org-table-widget-line line string))
+  string)
+
 (defun org-table-widget--render (table window width &optional pixel-budget)
   "Lay TABLE out for WINDOW at WIDTH columns and return the string.
-TABLE is a plist with :rows (cell lists or `hline'), :alignments and
-:header-rows, the number of leading rows before the first `hline'.
+TABLE is a plist with :rows (cell lists or `hline'), :alignments,
+:header-rows, the number of leading rows before the first `hline',
+and optionally :lines, the source line offset of each row.  Every row
+is drawn with its source line in the `org-table-widget-line' property;
+the top and bottom borders go with the first and last rows.
 PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
   (let* ((rows (plist-get table :rows))
+         (lines (plist-get table :lines))
          (alignments (plist-get table :alignments))
          (header-rows (plist-get table :header-rows))
          (columns (length alignments))
@@ -628,28 +641,36 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
          (bottom (if unicode '("└" "┴" "┘") '("+" "+" "+")))
          (row-index 0)
          (data-row-index 0)
-         (parts (list (apply #'org-table-widget--rule
-                             (append (list widths) top
-                                     (list boundary-pixels window))))))
-    (dolist (row rows)
-      (if (eq row 'hline)
-          (push (apply #'org-table-widget--rule
-                       (append (list widths) middle
-                               (list boundary-pixels window)))
-                parts)
-        (let* ((header (< row-index header-rows))
-               (row-face (cond (header 'org-table-widget-header)
-                               ((and org-table-widget-zebra-stripe
-                                     (= (mod data-row-index 2) 1))
-                                'org-table-widget-zebra))))
-          (push (org-table-widget--row row widths alignments row-face
-                                       boundary-pixels window)
-                parts)
-          (unless header
-            (setq data-row-index (1+ data-row-index)))
-          (setq row-index (1+ row-index)))))
-    (push (apply #'org-table-widget--rule
-                 (append (list widths) bottom (list boundary-pixels window)))
+         (parts (list (org-table-widget--source-line
+                       (apply #'org-table-widget--rule
+                              (append (list widths) top
+                                      (list boundary-pixels window)))
+                       (car lines)))))
+    (cl-loop
+     for row in rows
+     for line = (pop lines)
+     do (push
+         (org-table-widget--source-line
+          (if (eq row 'hline)
+              (apply #'org-table-widget--rule
+                     (append (list widths) middle
+                             (list boundary-pixels window)))
+            (let* ((header (< row-index header-rows))
+                   (row-face (cond (header 'org-table-widget-header)
+                                   ((and org-table-widget-zebra-stripe
+                                         (= (mod data-row-index 2) 1))
+                                    'org-table-widget-zebra))))
+              (unless header
+                (setq data-row-index (1+ data-row-index)))
+              (setq row-index (1+ row-index))
+              (org-table-widget--row row widths alignments row-face
+                                     boundary-pixels window)))
+          line)
+         parts))
+    (push (org-table-widget--source-line
+           (apply #'org-table-widget--rule
+                  (append (list widths) bottom (list boundary-pixels window)))
+           (car (last (plist-get table :lines))))
           parts)
     (let ((rendered (string-join (nreverse parts) "\n")))
       (add-face-text-property 0 (length rendered) 'fixed-pitch nil rendered)
@@ -741,36 +762,41 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
 
 (defun org-table-widget--parse (beg end)
   "Parse the Org table between BEG and END.
-Return a plist with :rows, :alignments and :header-rows, or nil when
-the region holds no data rows."
-  (let (rows alignments cookie-row)
+Return a plist with :rows, :alignments, :header-rows and :lines, or
+nil when the region holds no data rows.  :lines holds, for each row,
+the offset of its source line from the first line of the table."
+  (let ((line 0)
+        rows alignments cookie-row)
     (save-excursion
       (goto-char beg)
       (while (< (point) end)
         (cond
          ((looking-at-p org-table-hline-regexp)
-          (push 'hline rows))
+          (push (cons line 'hline) rows))
          ((looking-at-p org-table-dataline-regexp)
           (let ((cells (org-table-widget--line-cells)))
             (cond
              ((org-table-widget--cookie-row-p cells) (setq cookie-row cells))
              ((org-table-widget--group-row-p cells))
-             (t (push cells rows))))))
-        (forward-line 1)))
+             (t (push (cons line cells) rows))))))
+        (forward-line 1)
+        (setq line (1+ line))))
     (setq rows (nreverse rows))
     ;; Drop leading and trailing rules and merge adjacent ones.
-    (while (eq (car rows) 'hline) (setq rows (cdr rows)))
+    (while (eq (cdar rows) 'hline) (setq rows (cdr rows)))
     (setq rows (nreverse rows))
-    (while (eq (car rows) 'hline) (setq rows (cdr rows)))
+    (while (eq (cdar rows) 'hline) (setq rows (cdr rows)))
     (setq rows (nreverse rows))
     (let (merged previous)
       (dolist (row rows)
-        (unless (and (eq row 'hline) (eq previous 'hline))
+        (unless (and (eq (cdr row) 'hline) (eq previous 'hline))
           (push row merged))
-        (setq previous row))
+        (setq previous (cdr row)))
       (setq rows (nreverse merged)))
     (when rows
-      (let* ((columns (apply #'max (mapcar (lambda (row)
+      (let* ((lines (mapcar #'car rows))
+             (rows (mapcar #'cdr rows))
+             (columns (apply #'max (mapcar (lambda (row)
                                              (if (eq row 'hline) 0 (length row)))
                                            rows)))
              (header-rows (or (cl-position 'hline rows) 0)))
@@ -786,7 +812,8 @@ the region holds no data rows."
                                         (org-table-widget--cookie-alignment
                                          (or (nth column cookie-row) "")))
                                    'left)))
-        (list :rows rows :alignments alignments :header-rows header-rows)))))
+        (list :rows rows :alignments alignments :header-rows header-rows
+              :lines lines)))))
 
 ;;;; Overlays
 
@@ -847,10 +874,16 @@ Only the most recent rendering of each table is retained.")
   (seq-find (lambda (overlay) (overlay-get overlay 'org-table-widget))
             (overlays-in position (1+ position))))
 
+(defun org-table-widget--segments (overlay)
+  "Return the overlays displaying the widget OVERLAY is part of.
+They are in buffer order, one for each row of the widget."
+  (car (overlay-get overlay 'org-table-widget-segments)))
+
 (defun org-table-widget--remove-overlay (overlay)
-  "Delete widget OVERLAY and forget it."
-  (delete-overlay overlay)
-  (setq org-table-widget--overlays (delq overlay org-table-widget--overlays)))
+  "Delete the widget OVERLAY is part of and forget its overlays."
+  (mapc #'delete-overlay (org-table-widget--segments overlay))
+  (setq org-table-widget--overlays
+        (seq-filter #'overlay-buffer org-table-widget--overlays)))
 
 (defun org-table-widget--invalidate-render-cache (&rest _)
   "Discard rendered tables after edits, including edits to revealed source.
@@ -868,8 +901,32 @@ An edit can move subsequent table starts, so discard all position keys."
 (defconst org-table-widget--layout-gc-threshold (* 64 1024 1024)
   "Minimum GC allocation threshold while building a table widget.")
 
+(defun org-table-widget--split (rendered)
+  "Split RENDERED into the rows displayed over its table's source.
+Return a list of (LINE . STRING), where STRING is drawn over the
+source from line offset LINE up to the next row's LINE.  Source lines
+without a row of their own, such as alignment cookies, join the row
+above them."
+  (let (rows)
+    (dolist (text (split-string rendered "\n"))
+      (let ((line (or (get-text-property 0 'org-table-widget-line text) 0)))
+        (if (eql line (caar rows))
+            (push text (cdar rows))
+          (push (list line text) rows))))
+    (let ((first t))
+      (mapcar (lambda (row)
+                (let ((string (string-join (nreverse (cdr row)) "\n")))
+                  ;; Draw the cursor on the top-left corner while point
+                  ;; rests on the row.
+                  (put-text-property 0 1 'cursor t string)
+                  (prog1 (cons (if first 0 (car row)) string)
+                    (setq first nil))))
+              (nreverse rows)))))
+
 (defun org-table-widget--display-table (beg end window width)
-  "Cover the table between BEG and END with a widget for WINDOW at WIDTH."
+  "Cover the table between BEG and END with a widget for WINDOW at WIDTH.
+Each row of the widget is displayed by its own overlay, over the source
+lines it was drawn from.  Return the overlay of the first row."
   (let ((gc-cons-threshold (max gc-cons-threshold
                                 org-table-widget--layout-gc-threshold)))
     (font-lock-ensure beg end)
@@ -901,33 +958,50 @@ An edit can move subsequent table starts, so discard all position keys."
       (unless (equal key (car cached))
         (setq cached nil)
         (when-let* ((table (org-table-widget--parse beg end)))
-          (let* ((widget (widget-convert 'org-table-widget :value table
-                                         :window window :pixel-budget pixel-budget))
-                 (rendered (copy-sequence (textui-layout-widget widget columns))))
-            ;; Draw the cursor on the top-left corner while point rests
-            ;; at the start of the table.
-            (put-text-property 0 1 'cursor t rendered)
-            (setq cached (list key widget rendered))))
+          (let ((widget (widget-convert 'org-table-widget :value table
+                                        :window window :pixel-budget pixel-budget)))
+            (setq cached (list key widget
+                               (org-table-widget--split
+                                (textui-layout-widget widget columns))))))
         (puthash beg cached org-table-widget--render-cache))
       (when cached
-        (let ((widget (nth 1 cached))
-              (overlay (make-overlay beg end nil t nil)))
+        (let* ((widget (nth 1 cached))
+               (rows (nth 2 cached))
+               (starts (save-excursion
+                         (goto-char beg)
+                         (let ((line 0))
+                           (mapcar (lambda (row)
+                                     (forward-line (- (car row) line))
+                                     (setq line (car row))
+                                     (point))
+                                   rows))))
+               (segments (list nil))
+               overlays)
           (widget-put widget :window window)
-          (overlay-put overlay 'org-table-widget widget)
-          ;; Unlike replacement strings, before-strings honor pixel spaces.
-          (overlay-put overlay 'before-string (nth 2 cached))
-          ;; Point cannot rest where an empty replacement starts, so the
-          ;; table's final newline, or a space, replaces the source.
-          (overlay-put overlay 'display
-                       (if (eq (char-before end) ?\n) "\n" " "))
-          (overlay-put overlay 'keymap org-table-widget-map)
-          (overlay-put overlay 'evaporate t)
-          (overlay-put overlay 'modification-hooks
-                       (list #'org-table-widget--modified))
-          (overlay-put overlay 'insert-in-front-hooks
-                       (list #'org-table-widget--modified))
-          (push overlay org-table-widget--overlays)
-          overlay)))))
+          (while rows
+            (let* ((start (pop starts))
+                   (row-end (or (car starts) end))
+                   (overlay (make-overlay start row-end nil t nil)))
+              (overlay-put overlay 'org-table-widget widget)
+              (overlay-put overlay 'org-table-widget-segments segments)
+              ;; Unlike replacement strings, before-strings honor pixel spaces.
+              (overlay-put overlay 'before-string (cdr (pop rows)))
+              ;; Point cannot rest where an empty replacement starts, so the
+              ;; row's final newline, or a space, replaces the source.
+              (overlay-put overlay 'display
+                           (if (eq (char-before row-end) ?\n) "\n" " "))
+              (overlay-put overlay 'keymap org-table-widget-map)
+              (overlay-put overlay 'evaporate t)
+              (overlay-put overlay 'modification-hooks
+                           (list #'org-table-widget--modified))
+              (overlay-put overlay 'insert-in-front-hooks
+                           (list #'org-table-widget--modified))
+              (push overlay overlays)))
+          (setq overlays (nreverse overlays))
+          (setcar segments overlays)
+          (setq org-table-widget--overlays
+                (append overlays org-table-widget--overlays))
+          (car overlays))))))
 
 (defun org-table-widget--clear ()
   "Remove every widget overlay from the current buffer."
@@ -936,13 +1010,16 @@ An edit can move subsequent table starts, so discard all position keys."
 
 (defun org-table-widget--editing-p (table point)
   "Return non-nil when POINT is in the source of TABLE, a (BEG . END) cons.
-Point at the start of a table rests on its widget instead, unless the
-table is revealed or `org-table-widget-reveal-on-point' is non-nil."
+Point at the start of a line rests on a row of the widget instead,
+unless the table is revealed or `org-table-widget-reveal-on-point' is
+non-nil."
   (and (>= point (car table))
        (< point (cdr table))
        (or org-table-widget-reveal-on-point
            org-table-widget--inside-table
-           (> point (car table)))))
+           (/= point (save-excursion
+                       (goto-char point)
+                       (line-beginning-position))))))
 
 (defun org-table-widget-refresh ()
   "Lay out every table in the current buffer as a widget.
@@ -1013,7 +1090,7 @@ The table point is editing is left as source."
   (set-marker org-table-widget--previous-point (point)))
 
 (defun org-table-widget--reveal (overlay)
-  "Remove widget OVERLAY so the source of its table can be edited."
+  "Remove the widget OVERLAY is part of so its source can be edited."
   (org-table-widget--remove-overlay overlay)
   (setq org-table-widget--inside-table t))
 
@@ -1024,10 +1101,10 @@ The table point is editing is left as source."
     (org-table-widget--display-missing)))
 
 (defun org-table-widget--settle (overlay previous)
-  "Move point out of the source hidden by widget OVERLAY, or reveal it.
+  "Move point out of the source hidden by widget row OVERLAY, or reveal it.
 Point may rest at the start of OVERLAY, where the cursor is drawn on
-the widget.  PREVIOUS is point before the command.  Return non-nil
-when OVERLAY was revealed."
+the row.  PREVIOUS is point before the command.  Return non-nil when
+the widget was revealed."
   (let ((start (overlay-start overlay)))
     (cond
      ((= (point) start) nil)
@@ -1035,42 +1112,55 @@ when OVERLAY was revealed."
      ((or disable-point-adjustment global-disable-point-adjustment)
       (org-table-widget--reveal overlay)
       t)
-     ;; Moving forward off the widget steps over the whole table.
+     ;; Moving forward off a row steps to the next one.
      ((eql previous start)
       (goto-char (overlay-end overlay))
       nil)
-     ;; Any other motion into the table stops on the widget.
+     ;; Any other motion into the row stops on it.
      (t
       (goto-char start)
       nil))))
 
+(defun org-table-widget--vertical-stop (previous)
+  "Return the widget row vertical motion from PREVIOUS should stop at.
+Display-based motion can skip widget rows, which are drawn by
+before-strings, and land past the row next to PREVIOUS.  Return the
+start of that row when point is past it, or nil.  Motion by more than
+one line is left alone."
+  (let ((point (point))
+        stop)
+    (when (eql (abs (prefix-numeric-value current-prefix-arg)) 1)
+      (dolist (overlay (overlays-in (min point previous) (max point previous)))
+        (when (overlay-get overlay 'org-table-widget)
+          (let ((start (overlay-start overlay)))
+            (when (and (< (min point previous) start (max point previous))
+                       (or (null stop)
+                           (if (> point previous) (< start stop) (> start stop))))
+              (setq stop start))))))
+    stop))
+
 (defun org-table-widget--post-command ()
   "Keep point and table widgets in step after a command.
-Point stops on widgets unless `org-table-widget-reveal-on-point' is
-non-nil, in which case entering a table reveals its source.  Leaving
-a revealed table lays it out again."
+Point stops on widget rows unless `org-table-widget-reveal-on-point'
+is non-nil, in which case entering a table reveals its source.
+Leaving a revealed table lays it out again."
   (let* ((previous (and org-table-widget--previous-point
                         (marker-position org-table-widget--previous-point)))
          (vertical-motion (and (memq this-command '(previous-line next-line))
                                previous))
-         (overlay (org-table-widget--overlay-at (point))))
-    ;; Down can skip the entire widget and land just past its end.
-    (when (and (not overlay) vertical-motion (> (point) (point-min)))
-      (let ((crossed (org-table-widget--overlay-at (1- (point)))))
-        (when (and crossed
-                   (= (point) (overlay-end crossed))
-                   (< previous (overlay-start crossed)))
-          (setq overlay crossed)
-          (goto-char (overlay-start overlay)))))
+         (stop (and vertical-motion
+                    (org-table-widget--vertical-stop previous)))
+         (overlay (progn (when stop (goto-char stop))
+                         (org-table-widget--overlay-at (point)))))
     (cond
      ((and overlay org-table-widget-reveal-on-point)
-      ;; Display-based vertical motion can land at the start of the whole
-      ;; preview even when entering from below (as in org-latex-preview).
-      ;; Do not redirect searches or other explicit jumps into the table.
+      ;; Moving up onto a row enters its source from below: land on the
+      ;; row's last line, which differs from its first when it holds
+      ;; lines the widget does not draw.  Do not redirect searches or
+      ;; other explicit jumps into the table.
       (when (and vertical-motion
                  (= (point) (overlay-start overlay))
                  (>= previous (overlay-end overlay)))
-        ;; Table overlays include the final newline, unlike LaTeX previews.
         (goto-char (1- (overlay-end overlay)))
         (beginning-of-line))
       (org-table-widget--reveal overlay))
@@ -1083,7 +1173,8 @@ a revealed table lays it out again."
 
 (defun org-table-widget-edit ()
   "Show the Org source of the table under the widget at point.
-The widget returns when point leaves the table."
+Point stays on the source line of the row it rested on.  The widget
+returns when point leaves the table."
   (interactive)
   (if-let* ((overlay (org-table-widget--overlay-at (point))))
       (org-table-widget--reveal overlay)
@@ -1102,8 +1193,13 @@ The widget returns when point leaves the table."
                 (end (org-table-end)))
             (org-table-widget--display-table
              beg end window (org-table-widget--layout-width window))
-            ;; Rest on the widget unless entering the table reveals it.
-            (goto-char (if org-table-widget-reveal-on-point end beg))
+            ;; Rest on the row of the current line unless entering the
+            ;; table reveals it.
+            (goto-char (if-let* (((not org-table-widget-reveal-on-point))
+                                 (row (org-table-widget--overlay-at
+                                       (line-beginning-position))))
+                           (overlay-start row)
+                         end))
             (setq org-table-widget--inside-table nil)))))
      (t (user-error "Not at an Org table")))))
 
@@ -1114,10 +1210,10 @@ The widget returns when point leaves the table."
 ;;;###autoload
 (define-minor-mode org-table-widget-mode
   "Show Org tables as responsive pixel-aligned widgets.
-The buffer text is left untouched; each table is covered by an overlay
-displaying its widget.  Point stops on a widget as on a single
-character; \\<org-table-widget-map>\\[org-table-widget-edit] there reveals the table's source, which is
-laid out again when point leaves it."
+The buffer text is left untouched; each table row is covered by an
+overlay displaying its row of the widget.  Point stops on each widget
+row as on a single character; \\<org-table-widget-map>\\[org-table-widget-edit] there reveals the table's
+source, which is laid out again when point leaves it."
   :lighter " OTW"
   (if org-table-widget-mode
       (progn

@@ -108,6 +108,12 @@
                   (expand-file-name "shots/adjacent-and-nested-folded.png"
                                     org-table-widget-visual--directory))))
 
+(defun org-table-widget-visual--tables ()
+  "Return the row overlays of each widget in the buffer, in buffer order."
+  (sort (seq-uniq (mapcar #'org-table-widget--segments
+                          org-table-widget--overlays))
+        (lambda (a b) (< (overlay-start (car a)) (overlay-start (car b))))))
+
 (defun org-table-widget-visual--markup-check ()
   "Log faces and verify hidden link brackets retain their display behavior."
   (let* ((overlay (car org-table-widget--overlays))
@@ -155,17 +161,18 @@
             (org-table-widget-visual--log "SCREENSHOT %s status=%S exists=%S"
                                           shot status (file-exists-p shot)))
           (let ((index 0))
-            (dolist (overlay (sort (copy-sequence org-table-widget--overlays)
-                                   (lambda (a b) (< (overlay-start a) (overlay-start b)))))
+            (dolist (segments (org-table-widget-visual--tables))
               (cl-incf index)
-              (org-table-widget-visual--table
-               (overlay-get overlay 'before-string)
-               (list :file name :frame width :columns (window-body-width) :table index
-                     :line (line-number-at-pos (overlay-start overlay))
-                     :hidden (invisible-p (overlay-start overlay))
-                     :header-rows (plist-get
-                                   (widget-get (overlay-get overlay 'org-table-widget) :value)
-                                   :header-rows)))))
+              (let ((overlay (car segments)))
+                (org-table-widget-visual--table
+                 (mapconcat (lambda (segment) (overlay-get segment 'before-string))
+                            segments "\n")
+                 (list :file name :frame width :columns (window-body-width) :table index
+                       :line (line-number-at-pos (overlay-start overlay))
+                       :hidden (invisible-p (overlay-start overlay))
+                       :header-rows (plist-get
+                                     (widget-get (overlay-get overlay 'org-table-widget) :value)
+                                     :header-rows))))))
           (when (equal name "inline-markup.org")
             (org-table-widget-visual--markup-check))
           ;; Inspect the nested fixture after unfolding as well as its initial state.
@@ -183,11 +190,12 @@
       (with-current-buffer buffer (org-table-widget-mode -1))
       (kill-buffer buffer))))
 
-(defun org-table-widget-visual--height (overlay truncate)
-  "Return the pixel height of widget OVERLAY with `truncate-lines' TRUNCATE."
+(defun org-table-widget-visual--height (segments truncate)
+  "Return the pixel height of a widget's row overlays SEGMENTS.
+Measure with `truncate-lines' bound to TRUNCATE."
   (let ((truncate-lines truncate))
-    (cdr (window-text-pixel-size nil (overlay-start overlay)
-                                 (overlay-end overlay)))))
+    (cdr (window-text-pixel-size nil (overlay-start (car segments))
+                                 (overlay-end (car (last segments)))))))
 
 (defun org-table-widget-visual--wrapped-tables ()
   "Return the indexes of widgets whose lines wrap in the selected window.
@@ -195,12 +203,10 @@ A widget that fits keeps its height when lines may not wrap.  The display
 iterator draws line numbers and keeps the continuation column exactly as
 redisplay does; starting at the table, it sizes the number area for the
 table's own line, which makes this check pessimistic."
-  (cl-loop for overlay in (sort (copy-sequence org-table-widget--overlays)
-                                (lambda (a b)
-                                  (< (overlay-start a) (overlay-start b))))
+  (cl-loop for segments in (org-table-widget-visual--tables)
            for index from 1
-           unless (= (org-table-widget-visual--height overlay nil)
-                     (org-table-widget-visual--height overlay t))
+           unless (= (org-table-widget-visual--height segments nil)
+                     (org-table-widget-visual--height segments t))
            collect index))
 
 (defun org-table-widget-visual--gutter-check (name width)

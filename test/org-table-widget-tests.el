@@ -342,12 +342,18 @@
 
 (ert-deftest org-table-widget-rest-steps-over-widget ()
   ;; (COMMAND FROM LANDING EXPECTED): where a command left point, and where
-  ;; point settles.  The first case is where display-based Down lands.
+  ;; point settles.  Display-based vertical motion can skip rows.
   (dolist (case '((next-line before end start)
-                  (next-line start end end)
-                  (previous-line end start start)
-                  (forward-char start inside end)
-                  (backward-char end inside start)
+                  (next-line before second start)
+                  (next-line start end second)
+                  (next-line second end end)
+                  (previous-line end start second)
+                  (previous-line second start start)
+                  (previous-line end second second)
+                  (forward-char start inside second)
+                  (forward-char second second-inside end)
+                  (backward-char second inside start)
+                  (backward-char end second-inside second)
                   (next-line before inside start)   ; Logical line motion.
                   (goto-char end inside start)))
     (org-table-widget-tests--with-org "Before\n| a |\n| b |\nAfter\n"
@@ -359,8 +365,11 @@
                    (table (car (org-table-widget--tables)))
                    (overlay (org-table-widget--display-table
                              (car table) (cdr table) (selected-window) 80))
+                   (second (+ (car table) 6))
                    (places `((before . ,(point-min)) (start . ,(car table))
-                             (inside . ,(+ (car table) 3)) (end . ,(cdr table))))
+                             (inside . ,(+ (car table) 3)) (second . ,second)
+                             (second-inside . ,(+ second 3))
+                             (end . ,(cdr table))))
                    (this-command (nth 0 case)))
               (goto-char (alist-get (nth 1 case) places))
               (run-hooks 'pre-command-hook)
@@ -369,6 +378,7 @@
               (ert-info ((format "%S" case))
                 (should (= (point) (alist-get (nth 3 case) places)))
                 (should (overlay-buffer overlay))
+                (should (org-table-widget--overlay-at second))
                 (should-not org-table-widget--inside-table)))
           (org-table-widget-mode -1))))))
 
@@ -429,8 +439,24 @@
                   (org-table-widget-toggle)
                   (should-not org-table-widget--overlays)
                   (forward-line 1)
+                  (forward-char 3)
                   (org-table-widget-toggle)
-                  (should (= (point) start))
+                  (should (= (point) (line-beginning-position)))
+                  (should (= (line-number-at-pos) 3))
+                  (should (org-table-widget--overlay-at start))
+                  ;; Editing from the second row starts on its line.
+                  (org-table-widget-edit)
+                  (should-not org-table-widget--overlays)
+                  (should (= (line-number-at-pos) 3))
+                  (goto-char (point-max))
+                  (org-table-widget--post-command)
+                  ;; A relayout keeps a widget whose row point rests on.
+                  (goto-char start)
+                  (forward-line 1)
+                  (org-table-widget--post-command)
+                  (should (org-table-widget--overlay-at (point)))
+                  (org-table-widget-refresh)
+                  (should (org-table-widget--overlay-at (point)))
                   (should (org-table-widget--overlay-at start))
                   (should-error (progn (goto-char (point-min))
                                        (org-table-widget-edit))
@@ -471,7 +497,10 @@
                     (run-hooks 'post-command-hook))
                   (push (point) stops))
                 (should (equal (nreverse stops)
-                               (list (car table) (cdr table)
+                               (list (car table)
+                                     (save-excursion
+                                       (goto-char (car table))
+                                       (line-beginning-position 2))
                                      (car table) (point-min))))
                 (should (overlay-buffer overlay)))
             (org-table-widget-mode -1)))))))
@@ -512,18 +541,35 @@
                                                         (point-min) (point-max) (selected-window) 80))
                                               (rendered (overlay-get overlay 'before-string)))
                                          ;; Point can rest only before a non-empty replacement.
-                                         (should (equal (overlay-get overlay 'display)
-                                                        (if (string-suffix-p "\n" source) "\n" " ")))
+                                         (should (equal (overlay-get overlay 'display) "\n"))
                                          (should (stringp rendered))
-                                         (should (text-property-any 0 (length rendered)
-                                                                    'org-table-widget-spacing t rendered))
+                                         (let ((all (mapconcat (lambda (segment)
+                                                                 (overlay-get segment 'before-string))
+                                                               (org-table-widget--segments overlay)
+                                                               "\n")))
+                                           (should (text-property-any 0 (length all)
+                                                                      'org-table-widget-spacing t all)))
                                          (should-not (string-suffix-p "\n" rendered))
                                          (should (get-text-property 0 'cursor rendered))
                                          (should (eq (overlay-get overlay 'keymap)
                                                      org-table-widget-map))
-                                         (should (= (length org-table-widget--overlays) 1))
+                                         ;; One overlay per row: the first holds the top border.
+                                         (should (= (length org-table-widget--overlays) 2))
+                                         (should (equal (org-table-widget--segments overlay)
+                                                        org-table-widget--overlays))
+                                         (should (= (length (org-table-widget-tests--lines rendered)) 2))
                                          (should (eq overlay (org-table-widget--overlay-at (point-min))))
-                                         (should (eq overlay (org-table-widget--overlay-at (1- (point-max)))))
+                                         (let ((last (org-table-widget--overlay-at (1- (point-max)))))
+                                           (should-not (eq overlay last))
+                                           (should (= (overlay-start last) (overlay-end overlay)))
+                                           (should (= (overlay-end last) (point-max)))
+                                           (should (equal (overlay-get last 'display)
+                                                          (if (string-suffix-p "\n" source) "\n" " ")))
+                                           (should (get-text-property 0 'cursor
+                                                                      (overlay-get last 'before-string)))
+                                           (should (= (length (org-table-widget-tests--lines
+                                                               (overlay-get last 'before-string)))
+                                                      2)))
                                          (should-not (org-table-widget--overlay-at (point-max)))
                                          (org-table-widget--remove-overlay overlay)
                                          (should-not (overlay-buffer overlay))
@@ -587,15 +633,51 @@
 
 (ert-deftest org-table-widget-overlay-reveals-on-modification ()
   (require 'textui)
-  (dolist (offset '(0 3))
-    (org-table-widget-tests--with-org "| a | longer |\n"
+  ;; Editing any row, including at the start of a later row, removes them all.
+  (dolist (offset '(0 3 15 17))
+    (org-table-widget-tests--with-org "| a | longer |\n| b | x |\n"
                                       (org-table-widget-tests--with-pixel-mocks
-                                       (let ((overlay (org-table-widget--display-table
-                                                       (point-min) (point-max) (selected-window) 80)))
+                                       (let* ((overlay (org-table-widget--display-table
+                                                        (point-min) (point-max) (selected-window) 80))
+                                              (segments (org-table-widget--segments overlay)))
+                                         (should (= (length segments) 2))
                                          (goto-char (+ (point-min) offset))
                                          (insert "x")
-                                         (should-not (overlay-buffer overlay))
+                                         (should-not (seq-some #'overlay-buffer segments))
                                          (should-not org-table-widget--overlays))))))
+
+(ert-deftest org-table-widget-rows-cover-their-source-lines ()
+  (require 'textui)
+  ;; Lines the widget does not draw join the row above them; the borders
+  ;; go with the first and last rows.
+  (org-table-widget-tests--with-org
+      (concat "|---+---|\n| A | B |\n| <l> | <r> |\n|---+---|\n| 1 | 2 |\n"
+              "|---+---|\n|---+---|\n| 3 | 4 |\n|---+---|\nAfter\n")
+    (org-table-widget-tests--with-pixel-mocks
+     (let* ((table (car (org-table-widget--tables)))
+            (overlay (org-table-widget--display-table
+                      (car table) (cdr table) (selected-window) 80))
+            (segments (org-table-widget--segments overlay)))
+       (should (eq overlay (car segments)))
+       (should (equal (mapcar (lambda (segment)
+                                (list (line-number-at-pos (overlay-start segment))
+                                      (line-number-at-pos (overlay-end segment))
+                                      (org-table-widget-tests--lines
+                                       (overlay-get segment 'before-string))))
+                              segments)
+                      '((1 4 ("┌───┬───┐" "│ A │ B │"))
+                        (4 5 ("├───┼───┤"))
+                        (5 6 ("│ 1 │ 2 │"))
+                        (6 8 ("├───┼───┤"))
+                        (8 10 ("│ 3 │ 4 │" "└───┴───┘")))))
+       (should (= (overlay-end (car (last segments))) (cdr table)))
+       (dolist (segment segments)
+         (should (get-text-property 0 'cursor (overlay-get segment 'before-string)))
+         (should (eq (overlay-get segment 'org-table-widget)
+                     (overlay-get overlay 'org-table-widget))))
+       (org-table-widget--remove-overlay (nth 2 segments))
+       (should-not (seq-some #'overlay-buffer segments))
+       (should-not org-table-widget--overlays)))))
 
 (ert-deftest org-table-widget-parse-column-group-metadata ()
   (org-table-widget-tests--with-org
@@ -717,15 +799,17 @@
                   (goto-char (point-min))
                   (org-table-widget--post-command)
                   (should (= calls 5))
-                  (should (string-match-p "edited" (overlay-get
-                                                    (car org-table-widget--overlays)
-                                                    'before-string)))
+                  (should (string-match-p "edited"
+                                          (mapconcat (lambda (overlay)
+                                                       (overlay-get overlay 'before-string))
+                                                     org-table-widget--overlays)))
                   (insert "New paragraph\n")
                   (should-not org-table-widget--render-cache)
                   (goto-char (point-min))
                   (org-table-widget-refresh)
                   (should (= calls 6))
-                  (should (= (length org-table-widget--overlays) 1)))
+                  ;; One overlay for each of the table's two rows.
+                  (should (= (length org-table-widget--overlays) 2)))
               (org-table-widget-mode -1)
               (should-not org-table-widget--render-cache)
               (should-not (memq #'org-table-widget--invalidate-render-cache
@@ -942,8 +1026,9 @@
                 (should org-table-widget-mode)
                 (should (equal (buffer-string)
                                "Before\n| a | b |\n| c | d |\n\nAfter\n"))
-                (should (= 1 (length org-table-widget--overlays)))
-                (should (= 1 (length
+                ;; One overlay for each of the table's two rows.
+                (should (= 2 (length org-table-widget--overlays)))
+                (should (= 2 (length
                               (seq-filter
                                (lambda (ov) (overlay-get ov 'org-table-widget))
                                (append (car (overlay-lists))

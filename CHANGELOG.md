@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- Stop on each row of a rendered table instead of on the table as a whole.
+  Line motion walks through tables row by row and scrolling reaches every row,
+  so tables taller than the window can be read in full. `e` reveals the source
+  with point on the line of the row it rested on, and
+  `org-table-widget-toggle` renders a table with point on the row of the
+  current line.
+
 ## 0.2.0 — Edit tables on request
 
 ### Changes

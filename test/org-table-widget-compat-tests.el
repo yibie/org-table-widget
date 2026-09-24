@@ -37,7 +37,8 @@
                     (should (eq (get-text-property 3 'face) 'org-modern-todo))
                     (should (get-text-property 1 'display))
                     (should (get-text-property 18 'display))
-                    (should (= (length org-table-widget--overlays) 1))
+                    ;; One overlay for each of the table's two rows.
+                    (should (= (length org-table-widget--overlays) 2))
                     (org-table-widget-refresh)))
               (org-table-widget-mode -1)
               (org-modern-mode -1))))))))

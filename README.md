@@ -10,9 +10,9 @@ buffers, powered by [TextUI](https://github.com/yibie/textui).
 - Hide alignment and column-group declaration rows from the rendered table.
 
 Rendering uses overlays, leaving the source table intact for Org editing,
-export, formulas and Babel. Point stops on a table as on a single character,
-with the cursor on its top-left corner; press `e` there to reveal the source,
-and move out to render it again.
+export, formulas and Babel. Point stops on each row of a table as on a single
+character, with the cursor on the row's top-left corner; press `e` there to
+reveal the source, and move out to render it again.
 
 The cursor-entry correction for moving upward into a table preview is adapted
 from [karthink's org-latex-preview fix](https://github.com/karthink/org-mode/blob/olp/lisp/org-latex-preview.el#L670).
@@ -56,9 +56,10 @@ Use `M-x org-table-widget-mode` to enable or disable it in the current buffer,
 `M-x org-table-widget-toggle` to reveal or render the table at point, and
 `M-x org-table-widget-refresh` to refresh the buffer's tables.
 
-Line and character motion stop on a rendered table and then step past it. With
-point on the table, press `e` (`org-table-widget-edit`) to edit its Org source;
-the table is rendered again once point leaves it. Searches that land inside a
+Line and character motion stop on each row of a rendered table, so long tables
+can be walked through and scrolled like ordinary text. With point on a row,
+press `e` (`org-table-widget-edit`) to edit the table's Org source, starting on
+that row's line; the table is rendered again once point leaves it. Searches that land inside a
 table reveal it too. Keys on a table come from `org-table-widget-map`.
 
 ### Options

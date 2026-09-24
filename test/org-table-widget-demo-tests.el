@@ -62,21 +62,30 @@
                                        (point-min) (point-max))))
                 (should-not (buffer-modified-p))
                 (should (eq undo buffer-undo-list))
-                (let ((starts (sort (mapcar #'overlay-start
-                                            org-table-widget--overlays) #'<)))
+                ;; Each table is displayed by one overlay per row.
+                (let* ((firsts (seq-filter
+                                (lambda (overlay)
+                                  (eq overlay (car (org-table-widget--segments
+                                                    overlay))))
+                                org-table-widget--overlays))
+                       (starts (sort (mapcar #'overlay-start firsts) #'<)))
                   (unless (equal starts tables)
                     (push (list :expected-table-starts tables :actual starts)
-                          problems)))
-                (dolist (overlay org-table-widget--overlays)
-                  (let* ((beg (overlay-start overlay))
-                         (source-rows (org-table-widget-demo-tests--content-rows beg))
-                         (rendered (overlay-get overlay 'before-string))
-                         (lines (length (split-string
-                                         (string-trim-right rendered "\n") "\n"))))
-                    (unless (>= lines (+ source-rows 2))
-                      (push (list :line (line-number-at-pos beg)
-                                  :source-rows source-rows :rendered-lines lines)
-                            problems))))
+                          problems))
+                  (dolist (overlay firsts)
+                    (let* ((beg (overlay-start overlay))
+                           (source-rows (org-table-widget-demo-tests--content-rows beg))
+                           (lines (apply #'+
+                                         (mapcar
+                                          (lambda (segment)
+                                            (length (split-string
+                                                     (overlay-get segment 'before-string)
+                                                     "\n")))
+                                          (org-table-widget--segments overlay)))))
+                      (unless (>= lines (+ source-rows 2))
+                        (push (list :line (line-number-at-pos beg)
+                                    :source-rows source-rows :rendered-lines lines)
+                              problems)))))
                 (ert-info ((format "%s: %S" (file-name-nondirectory file)
                                    (reverse problems)))
                           (should-not problems))))

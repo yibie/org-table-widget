@@ -22,7 +22,33 @@ The paragraph after a table remains ordinary text.
 | Combining | café café naïve naïve á̧ | Precomposed and combining forms have stable widths. |
 | RTL       | English العربية مرحبا بالعالم English | Bidirectional text remains in the expected order. |
 | Flags     | 🇯🇵 🇰🇷 🇨🇳 🇺🇸 | Adjacent regional-indicator pairs remain intact. |
+只要有需求，就会有搜索量，做了就能拿到排名。
+这个仓库列出来了微信安卓各个版本的安装包下载地址
+https://github.com/DJB-Developer/wechat-android-history-versions
 
+当我们在谷歌搜索某个版本号时，这个 Github 仓库就会出现在搜索结果里。
+目前排名稍靠后原因是，这个版本号字符串只出现在了仓库的readme 里，如果他给每一个文件创建一个文件夹，并且都配套一个版本号标题，那么排名会更靠前。
+
+这个哪位群友可以测试下，自己搞一个 Github 仓库，让 AI 帮你把上面这个仓库按照我提的方法整理为新的仓库
+搜索某个版本号，目前排名第一的网页，就是直接在标题里就完全匹配了版本号字符串
+如果我们 site 他这个目录，就会发现，他给每一个版本号都建立一个内页了。
+这就是所谓的 PSEO，程序化页面，通过程序来从数据库取数据，填充页面模板，生成大量结构相似的页面。
+但也需要提醒大家，高权重老站可以这么玩，不代表我们现在刚建立的新站也可以这样玩。
+
+如果我们新站也这样大量高重复内容页面，会被谷歌惩罚的。只要有需求，就会有搜索量，做了就能拿到排名。
+这个仓库列出来了微信安卓各个版本的安装包下载地址
+https://github.com/DJB-Developer/wechat-android-history-versions
+
+当我们在谷歌搜索某个版本号时，这个 Github 仓库就会出现在搜索结果里。
+目前排名稍靠后原因是，这个版本号字符串只出现在了仓库的readme 里，如果他给每一个文件创建一个文件夹，并且都配套一个版本号标题，那么排名会更靠前。
+
+这个哪位群友可以测试下，自己搞一个 Github 仓库，让 AI 帮你把上面这个仓库按照我提的方法整理为新的仓库
+搜索某个版本号，目前排名第一的网页，就是直接在标题里就完全匹配了版本号字符串
+如果我们 site 他这个目录，就会发现，他给每一个版本号都建立一个内页了。
+这就是所谓的 PSEO，程序化页面，通过程序来从数据库取数据，填充页面模板，生成大量结构相似的页面。
+但也需要提醒大家，高权重老站可以这么玩，不代表我们现在刚建立的新站也可以这样玩。
+
+如果我们新站也这样大量高重复内容页面，会被谷歌惩罚的。
 * Inline Org markup and links
 
 #+name: inline-markup
