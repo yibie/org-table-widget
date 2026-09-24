@@ -987,9 +987,14 @@ lines it was drawn from.  Return the overlay of the first row."
               ;; Unlike replacement strings, before-strings honor pixel spaces.
               (overlay-put overlay 'before-string (cdr (pop rows)))
               ;; Point cannot rest where an empty replacement starts, so the
-              ;; row's final newline, or a space, replaces the source.
+              ;; row's final newline, or a space, replaces the source.  Each
+              ;; row gets a string of its own: redisplay extends a replacement
+              ;; to the next change of the `display' value and compares values
+              ;; with `eq', so one literal shared by every row would replace a
+              ;; whole table as a single stretch and draw only its first row.
               (overlay-put overlay 'display
-                           (if (eq (char-before row-end) ?\n) "\n" " "))
+                           (copy-sequence
+                            (if (eq (char-before row-end) ?\n) "\n" " ")))
               (overlay-put overlay 'keymap org-table-widget-map)
               (overlay-put overlay 'evaporate t)
               (overlay-put overlay 'modification-hooks

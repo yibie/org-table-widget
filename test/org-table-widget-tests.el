@@ -679,6 +679,25 @@
        (should-not (seq-some #'overlay-buffer segments))
        (should-not org-table-widget--overlays)))))
 
+(ert-deftest org-table-widget-rows-replace-only-their-own-line ()
+  (require 'textui)
+  ;; Redisplay extends a `display' replacement to the next change of the
+  ;; property's value and compares values with `eq', so rows sharing one
+  ;; string object are replaced as a single stretch: only the first row's
+  ;; `before-string' is drawn and the rest of the table disappears.
+  (org-table-widget-tests--with-org
+      "| A | B |\n|---+---|\n| 1 | 2 |\n| 3 | 4 |\nAfter\n"
+    (org-table-widget-tests--with-pixel-mocks
+     (let* ((table (car (org-table-widget--tables)))
+            (overlay (org-table-widget--display-table
+                      (car table) (cdr table) (selected-window) 80))
+            (segments (org-table-widget--segments overlay)))
+       (should (= (length segments) 4))
+       (dolist (segment segments)
+         (should (= (next-single-char-property-change (overlay-start segment)
+                                                      'display)
+                    (overlay-end segment))))))))
+
 (ert-deftest org-table-widget-parse-column-group-metadata ()
   (org-table-widget-tests--with-org
       "| / | < | > | <> | |\n| Name | A | B | C | D |\n|---+---+---+---+---|\n| x | 1 | 2 | 3 | 4 |\n"
