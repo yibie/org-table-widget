@@ -32,7 +32,7 @@ Not on MELPA yet. Install TextUI first, then this package:
 ```elisp
 (require 'package-vc)
 (package-vc-install "https://github.com/yibie/textui")
-(package-vc-install "https://github.com/yibie/org-table-widget" "v0.3.0")
+(package-vc-install "https://github.com/yibie/org-table-widget" "v0.3.1")
 ```
 
 Alternatively, clone both repositories and add their directories manually:
@@ -121,7 +121,12 @@ overlays in that region.
 
 ## Status
 
-**0.3.0 is an early release.** Known limitations:
+**0.3.1 is an early release.** It is developed and used day to day on Emacs 32
+(the development branch), so display behavior on earlier versions gets less
+testing. Reports from Emacs 29, 30 and 31 users are very welcome; please open an
+issue with your Emacs version.
+
+Known limitations:
 
 - Org width cookies are ignored.
 - Very wide tables can overflow the window when minimum column widths do not fit.

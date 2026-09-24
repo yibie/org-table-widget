@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 — Draw every row
+
+### Fixes
+
+- Draw every row of a rendered table. In 0.3.0 all rows of a table shared one
+  `display` string, so Emacs replaced the whole table as a single stretch and
+  drew only its first row; the rest of the table vanished. Seen on Emacs 30;
+  it went unnoticed because the package is developed on Emacs 32. Thanks to
+  @teehemkay for the diagnosis and fix (#3).
+
 ## 0.3.0 — Walk through long tables
 
 ### Changes
