@@ -6,7 +6,7 @@
 ;; Assisted-by: OpenAI Codex
 ;; Maintainer: yibie <https://github.com/yibie>
 ;; URL: https://github.com/yibie/org-table-widget
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "29.1") (org "9.6") (textui "0.8.0"))
 ;; Keywords: outlines, wp, convenience
 ;; SPDX-License-Identifier: GPL-3.0-or-later
