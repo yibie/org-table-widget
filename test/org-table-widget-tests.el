@@ -3,8 +3,12 @@
 ;;; Commentary:
 
 ;; Run with:
-;;   emacs -Q --batch -L . -L <textui> -l org-table-widget.el \
+;;   emacs -Q --batch --eval "(setq native-comp-enable-subr-trampolines nil)" \
+;;     -L . -L <textui> -l org-table-widget.el \
 ;;     -l test/org-table-widget-tests.el -f ert-run-tests-batch-and-exit
+;;
+;; Tests replace built-in functions such as `window-text-pixel-size';
+;; disabling trampolines keeps that from needing a native compiler.
 
 ;;; Code:
 
