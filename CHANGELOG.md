@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changes
+
+- Keep a table's header visible while scrolling through the table. Once the
+  header rows scroll out of view, the window's header line shows them, aligned
+  with the columns below; set `org-table-widget-sticky-header` to nil to turn
+  this off. Only the header's first line fits in the header line. Suggested on
+  Reddit by u/shipmints and u/vfclists.
+  Known issue: while the sticky header is shown, scrolling through large
+  tables is noticeably less smooth.
+
 ## 0.3.1 — Draw every row
 
 ### Fixes

@@ -62,6 +62,14 @@ press `e` (`org-table-widget-edit`) to edit the table's Org source, starting on
 that row's line; the table is rendered again once point leaves it. Searches that land inside a
 table reveal it too. Keys on a table come from `org-table-widget-map`.
 
+When a table's header, the rows above its first horizontal rule, scrolls out of
+view while the rest of the table is still on screen, the window's header line
+shows it, aligned with the columns below. The header line holds one line, so a
+header that wraps or spans several rows shows only its first line. Any other
+header line comes back once the header scrolls into view again. The sticky
+header makes scrolling through large tables noticeably less smooth; set
+`org-table-widget-sticky-header` to nil if that matters more.
+
 ### Options
 
 Customize with `M-x customize-group RET org-table-widget RET`.
@@ -74,6 +82,7 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 | `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window body width available to the table. |
 | `org-table-widget-relayout-delay` | `0.15` | Idle seconds before resize relayout; zero or negative means immediate. |
 | `org-table-widget-reveal-on-point` | `nil` | Reveal source as soon as point enters a table, without `e`. |
+| `org-table-widget-sticky-header` | `t` | Keep a scrolled-off table header in the header line. |
 | `org-table-widget-cell-properties` | `(face font-lock-face invisible display mouse-face help-echo keymap follow-link htmlize-link org-emphasis)` | Text properties retained in rendered cells. |
 
 ### Compatibility
@@ -133,6 +142,8 @@ Known limitations:
   Overflow is truncated when `truncate-lines` is non-nil (the Org default), or
   wraps when nil; the widget does not change `truncate-lines`.
 - Numeric columns are not automatically right-aligned; use an explicit `<r>` cookie.
+- The sticky header slows scrolling through large tables, in both directions;
+  set `org-table-widget-sticky-header` to nil to avoid it.
 - Coexistence with `valign` is untested; see above for `org-modern` test coverage.
 
 See [CHANGELOG.md](CHANGELOG.md) for release changes.

@@ -1101,5 +1101,90 @@
     (should-not (memq #'org-table-widget--before-major-mode-change
                       change-major-mode-hook))))
 
+;;;; Sticky header
+
+(ert-deftest org-table-widget-sticky-header-string ()
+  (require 'textui)
+  (org-table-widget-tests--with-org
+      "| A | 50% |\n|---+---|\n| 1 | 2 |\n| 3 | 4 |\n"
+    (org-table-widget-tests--with-pixel-mocks
+     (let* ((overlay (org-table-widget--display-table
+                      (point-min) (point-max) (selected-window) 80))
+            (widget (overlay-get overlay 'org-table-widget))
+            (header (widget-get widget :sticky-header))
+            (a (string-match "A" header)))
+       ;; The header row without the top border, with `%' escaped for
+       ;; the header line.
+       (should (equal (substring-no-properties header) "│ A │ 50%% │"))
+       ;; The doubled `%' keeps the cell's faces, and so its width.
+       (let ((percent (string-match "%%" header)))
+         (should (equal (get-text-property percent 'face header)
+                        (get-text-property (1+ percent) 'face header)))
+         (should (memq 'org-table-widget-header
+                       (ensure-list (get-text-property (1+ percent) 'face
+                                                       header)))))
+       (should-not (text-property-any 0 (length header) 'cursor t header))
+       (let ((faces (ensure-list (get-text-property a 'face header))))
+         (should (memq 'org-table-widget-header faces))
+         (should (eq (car (last faces)) 'default)))
+       (should (widget-get widget :sticky-indent)))))
+  (org-table-widget-tests--with-org "| a | b |\n| c | d |\n"
+    (org-table-widget-tests--with-pixel-mocks
+     (let ((overlay (org-table-widget--display-table
+                     (point-min) (point-max) (selected-window) 80)))
+       (should-not (widget-get (overlay-get overlay 'org-table-widget)
+                               :sticky-header))))))
+
+(ert-deftest org-table-widget-sticky-header-follows-window-start ()
+  (require 'textui)
+  (org-table-widget-tests--with-org
+      "Before\n| A | B |\n|---+---|\n| 1 | 2 |\n| 3 | 4 |\nAfter\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (org-table-widget-tests--with-pixel-mocks
+       (let* ((window (selected-window))
+              (table (car (org-table-widget--tables)))
+              (overlay (org-table-widget--display-table
+                        (car table) (cdr table) window 80))
+              (widget (overlay-get overlay 'org-table-widget))
+              (segments (org-table-widget--segments overlay)))
+         (setq header-line-format "Mine")
+         (setq org-table-widget-mode t)
+         (unwind-protect
+             (progn
+               ;; Header on screen, or no table at the top: no sticky header.
+               (dolist (start (list (point-min) (overlay-start overlay)))
+                 (should-not (org-table-widget--sticky-widget window start)))
+               ;; The rule below the header and the rows after it.
+               (dolist (segment (cdr segments))
+                 (should (eq (org-table-widget--sticky-widget
+                              window (overlay-start segment))
+                             widget)))
+               (should-not (org-table-widget--sticky-widget window (cdr table)))
+               (set-window-start window (overlay-start (nth 2 segments)))
+               (org-table-widget--update-sticky-header)
+               (should (eq header-line-format
+                           org-table-widget--sticky-header-format))
+               (should (string-suffix-p
+                        "│ A │ B │"
+                        (substring-no-properties
+                         (org-table-widget--sticky-header-line))))
+               ;; A second update keeps the replaced header line.
+               (org-table-widget--update-sticky-header)
+               (should (equal org-table-widget--saved-header-line "Mine"))
+               ;; Scrolling back to the header restores it.
+               (org-table-widget--update-sticky-header window (point-min))
+               (should (equal header-line-format "Mine"))
+               (set-window-start window (overlay-start (nth 2 segments)))
+               (let ((org-table-widget-sticky-header nil))
+                 (org-table-widget--update-sticky-header)
+                 (should (equal header-line-format "Mine")))
+               (org-table-widget--update-sticky-header)
+               (should (eq header-line-format
+                           org-table-widget--sticky-header-format))
+               (org-table-widget-mode -1)
+               (should (equal header-line-format "Mine")))
+           (org-table-widget-mode -1)))))))
+
 (provide 'org-table-widget-tests)
 ;;; org-table-widget-tests.el ends here

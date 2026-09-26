@@ -109,6 +109,19 @@ Every other property is dropped so that the widget does not inherit
 line prefixes, fontification state or private markers."
   :type '(repeat symbol))
 
+(defcustom org-table-widget-sticky-header t
+  "When non-nil, keep the header of a table scrolled past in the header line.
+A table's header is the rows above its first horizontal rule.  While
+the top of a window shows a table whose header is scrolled out of view,
+the window's header line shows the header aligned with the columns
+below, replacing any other header line until the header scrolls back
+into view.  The header line holds a single line, so a header that wraps
+or spans several rows shows only its first line.
+
+Showing the header line slows scrolling through large tables; set this
+to nil when smooth scrolling matters more."
+  :type 'boolean)
+
 (defface org-table-widget-header
   '((t :inherit bold))
   "Face for header rows.")
@@ -934,9 +947,10 @@ lines it was drawn from.  Return the overlay of the first row."
       (setq org-table-widget--render-cache (make-hash-table :test 'eql)))
     (let* ((column-pixels (max 1 (or (ignore-errors (window-font-width window))
                                      (frame-char-width (window-frame window)))))
+           (prefix (org-table-widget--prefix-width beg window))
            ;; Line prefixes, line numbers and a reserved continuation
            ;; column narrow the space the table's lines can use.
-           (inset (+ (org-table-widget--prefix-width beg window)
+           (inset (+ prefix
                      (org-table-widget--line-number-width window)
                      (if (org-table-widget--reserves-continuation-p window)
                          column-pixels
@@ -958,11 +972,13 @@ lines it was drawn from.  Return the overlay of the first row."
       (unless (equal key (car cached))
         (setq cached nil)
         (when-let* ((table (org-table-widget--parse beg end)))
-          (let ((widget (widget-convert 'org-table-widget :value table
-                                        :window window :pixel-budget pixel-budget)))
-            (setq cached (list key widget
-                               (org-table-widget--split
-                                (textui-layout-widget widget columns))))))
+          (let* ((widget (widget-convert 'org-table-widget :value table
+                                         :window window :pixel-budget pixel-budget))
+                 (rows (org-table-widget--split
+                        (textui-layout-widget widget columns))))
+            (widget-put widget :sticky-header
+                        (org-table-widget--sticky-header table rows))
+            (setq cached (list key widget rows))))
         (puthash beg cached org-table-widget--render-cache))
       (when cached
         (let* ((widget (nth 1 cached))
@@ -978,6 +994,8 @@ lines it was drawn from.  Return the overlay of the first row."
                (segments (list nil))
                overlays)
           (widget-put widget :window window)
+          ;; Measured here: the header line cannot measure while redisplay runs.
+          (widget-put widget :sticky-indent prefix)
           (while rows
             (let* ((start (pop starts))
                    (row-end (or (car starts) end))
@@ -1041,7 +1059,8 @@ The table point is editing is left as source."
             (unless (org-table-widget--editing-p table point)
               (org-table-widget--display-table (car table) (cdr table)
                                                window width))))
-        (setq org-table-widget--width width)))))
+        (setq org-table-widget--width width))))
+  (org-table-widget--update-sticky-header))
 
 (defun org-table-widget--display-missing ()
   "Display widgets for tables that have none, except the one at point."
@@ -1089,6 +1108,88 @@ The table point is editing is left as source."
                (not (equal (org-table-widget--layout-width window)
                            org-table-widget--width)))
       (org-table-widget--schedule-relayout))))
+
+;;;; Sticky header
+
+(defconst org-table-widget--sticky-header-format
+  '(:eval (org-table-widget--sticky-header-line))
+  "The `header-line-format' installed while a table header is scrolled past.")
+
+(defvar-local org-table-widget--saved-header-line nil
+  "The `header-line-format' the sticky header replaced.")
+
+(defun org-table-widget--escape-mode-line (string)
+  "Return STRING with every `%' doubled, keeping its text properties.
+Header line constructs read `%' as the start of a directive."
+  (let ((start 0)
+        parts)
+    (while (string-match "%" string start)
+      (push (substring string start (match-end 0)) parts)
+      (push (substring string (match-beginning 0) (match-end 0)) parts)
+      (setq start (match-end 0)))
+    (push (substring string start) parts)
+    (apply #'concat (nreverse parts))))
+
+(defun org-table-widget--sticky-header (table rows)
+  "Return the header line string for TABLE displayed as ROWS, or nil.
+ROWS is the result of `org-table-widget--split'.  Its first row holds
+the top border followed by the lines of the first header row, of which
+only the first fits in a header line.  Return nil when TABLE has no
+header."
+  (when-let* (((> (plist-get table :header-rows) 0))
+              (line (nth 1 (split-string (cdar rows) "\n"))))
+    (remove-list-of-text-properties 0 (length line)
+                                    '(cursor org-table-widget-line) line)
+    ;; Header line text takes unspecified attributes from the `header-line'
+    ;; face.  Take them from the buffer's remapped default face instead, so
+    ;; the columns keep the widths of the rows below, text scaling included.
+    (add-face-text-property 0 (length line) 'default t line)
+    (org-table-widget--escape-mode-line line)))
+
+(defun org-table-widget--sticky-widget (window &optional start)
+  "Return the widget whose header WINDOW has scrolled past, or nil.
+That is the widget drawn from START, which defaults to WINDOW's start,
+when it has a header and its first row, which draws the header, starts
+above START."
+  (let ((start (or start (window-start window))))
+    (when-let* ((overlay (org-table-widget--overlay-at start))
+                (widget (overlay-get overlay 'org-table-widget))
+                ((widget-get widget :sticky-header))
+                ((> start (overlay-start
+                           (car (org-table-widget--segments overlay))))))
+      widget)))
+
+(defun org-table-widget--sticky-header-line ()
+  "Return the header line of the selected window.
+Show the header of the table the window has scrolled past, aligned with
+the table's columns, or else the header line the sticky header replaced."
+  (if-let* ((widget (org-table-widget--sticky-widget (selected-window))))
+      (concat (propertize " " 'display
+                          `(space :align-to
+                                  (,(+ (line-number-display-width t)
+                                       (widget-get widget :sticky-indent)))))
+              (widget-get widget :sticky-header))
+    org-table-widget--saved-header-line))
+
+(defun org-table-widget--update-sticky-header (&optional window start)
+  "Install the sticky header while a window has scrolled past a table header.
+Otherwise restore the header line it replaced, so no empty header line
+is left behind.  WINDOW, when non-nil, is about to be displayed from
+START, as for `window-scroll-functions'."
+  (let ((installed (eq header-line-format
+                       org-table-widget--sticky-header-format)))
+    (if (and org-table-widget-mode
+             org-table-widget-sticky-header
+             (seq-some (lambda (shown)
+                         (org-table-widget--sticky-widget
+                          shown (and (eq shown window) start)))
+                       (get-buffer-window-list (current-buffer) nil t)))
+        (unless installed
+          (setq org-table-widget--saved-header-line header-line-format
+                header-line-format org-table-widget--sticky-header-format))
+      (when installed
+        (setq header-line-format org-table-widget--saved-header-line
+              org-table-widget--saved-header-line nil)))))
 
 (defun org-table-widget--pre-command ()
   "Record point so the direction of motion onto a widget can be recognized."
@@ -1174,7 +1275,8 @@ Leaving a revealed table lays it out again."
         (org-table-widget--leave)))
      ((org-at-table-p)
       (setq org-table-widget--inside-table t))
-     (t (org-table-widget--leave)))))
+     (t (org-table-widget--leave)))
+    (org-table-widget--update-sticky-header)))
 
 (defun org-table-widget-edit ()
   "Show the Org source of the table under the widget at point.
@@ -1244,6 +1346,8 @@ source, which is laid out again when point leaves it."
                   nil t)
         (add-hook 'display-line-numbers-mode-hook
                   #'org-table-widget--schedule-relayout nil t)
+        (add-hook 'window-scroll-functions
+                  #'org-table-widget--update-sticky-header nil t)
         (org-table-widget-refresh))
     (remove-hook 'change-major-mode-hook
                  #'org-table-widget--before-major-mode-change t)
@@ -1260,8 +1364,11 @@ source, which is laid out again when point leaves it."
     (remove-hook 'text-scale-mode-hook #'org-table-widget--schedule-relayout t)
     (remove-hook 'display-line-numbers-mode-hook
                  #'org-table-widget--schedule-relayout t)
+    (remove-hook 'window-scroll-functions
+                 #'org-table-widget--update-sticky-header t)
     (org-table-widget--cancel-relayout)
-    (org-table-widget--clear)))
+    (org-table-widget--clear)
+    (org-table-widget--update-sticky-header)))
 
 (provide 'org-table-widget)
 ;;; org-table-widget.el ends here
