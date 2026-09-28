@@ -12,6 +12,13 @@
   Known issue: while the sticky header is shown, scrolling through large
   tables is noticeably less smooth.
 
+### Fixes
+
+- Lay tables out again once `org-indent-mode` has added its line prefixes.
+  org-indent prefixes a newly opened buffer from an idle timer that fires after
+  the tables are laid out, so every table was one indentation too wide and its
+  rows wrapped. Thanks to @teehemkay for the diagnosis and fix (#4).
+
 ## 0.3.1 — Draw every row
 
 ### Fixes

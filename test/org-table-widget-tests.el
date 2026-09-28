@@ -1101,6 +1101,27 @@
     (should-not (memq #'org-table-widget--before-major-mode-change
                       change-major-mode-hook))))
 
+(ert-deftest org-table-widget-relayout-after-org-indent-prefixes ()
+  "Tables are laid out again once `org-indent-mode' has prefixed the buffer."
+  (org-table-widget-tests--with-org "| a | b |\n"
+    (let ((refreshes 0)
+          (org-table-widget-relayout-delay 0))
+      (org-table-widget-mode 1)
+      (unwind-protect
+          (cl-letf (((symbol-function 'org-table-widget-refresh)
+                     (lambda () (setq refreshes (1+ refreshes)))))
+            ;; The hook is buffer-local: other buffers do not relayout ours.
+            (with-temp-buffer
+              (run-hook-with-args 'org-indent-post-buffer-init-functions
+                                  (current-buffer)))
+            (should (= refreshes 0))
+            (run-hook-with-args 'org-indent-post-buffer-init-functions
+                                (current-buffer))
+            (should (= refreshes 1)))
+        (org-table-widget-mode -1))
+      (should-not (memq #'org-table-widget--indent-initialized
+                        org-indent-post-buffer-init-functions)))))
+
 ;;;; Sticky header
 
 (ert-deftest org-table-widget-sticky-header-string ()

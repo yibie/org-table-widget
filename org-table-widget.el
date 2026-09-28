@@ -1191,6 +1191,16 @@ START, as for `window-scroll-functions'."
         (setq header-line-format org-table-widget--saved-header-line
               org-table-widget--saved-header-line nil)))))
 
+(defun org-table-widget--indent-initialized (buffer)
+  "Lay BUFFER's widgets out again once `org-indent-mode' has prefixed it.
+The mode adds its line prefixes from an idle timer, usually after the
+widgets were laid out without them, so tables would overrun the window
+by one indentation.  Relayout from a timer of our own: org-indent runs
+this hook with the buffer widened."
+  (when (buffer-live-p buffer)
+    (with-current-buffer buffer
+      (org-table-widget--schedule-relayout))))
+
 (defun org-table-widget--pre-command ()
   "Record point so the direction of motion onto a widget can be recognized."
   (set-marker org-table-widget--previous-point (point)))
@@ -1348,6 +1358,8 @@ source, which is laid out again when point leaves it."
                   #'org-table-widget--schedule-relayout nil t)
         (add-hook 'window-scroll-functions
                   #'org-table-widget--update-sticky-header nil t)
+        (add-hook 'org-indent-post-buffer-init-functions
+                  #'org-table-widget--indent-initialized nil t)
         (org-table-widget-refresh))
     (remove-hook 'change-major-mode-hook
                  #'org-table-widget--before-major-mode-change t)
@@ -1366,6 +1378,8 @@ source, which is laid out again when point leaves it."
                  #'org-table-widget--schedule-relayout t)
     (remove-hook 'window-scroll-functions
                  #'org-table-widget--update-sticky-header t)
+    (remove-hook 'org-indent-post-buffer-init-functions
+                 #'org-table-widget--indent-initialized t)
     (org-table-widget--cancel-relayout)
     (org-table-widget--clear)
     (org-table-widget--update-sticky-header)))
