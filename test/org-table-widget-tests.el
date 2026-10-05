@@ -386,6 +386,43 @@
                 (should-not org-table-widget--inside-table)))
           (org-table-widget-mode -1))))))
 
+(ert-deftest org-table-widget-line-motion-skips-folded-tables ()
+  (dolist (style '(overlays text-properties))
+    (dolist (reveal '(nil t))
+      (dolist (command '(next-line previous-line))
+        (let ((org-fold-core-style style)
+              (org-table-widget-reveal-on-point reveal)
+              (line-move-visual nil))
+          (org-table-widget-tests--with-org "* Folded\n| a |\n| b |\n* Next\n"
+            (save-window-excursion
+              (switch-to-buffer (current-buffer))
+              (org-table-widget-tests--with-pixel-mocks
+                (cl-letf (((symbol-function 'display-graphic-p)
+                           (lambda (&rest _) t)))
+                  (org-table-widget-mode 1)
+                  (unwind-protect
+                      (let* ((table (car (org-table-widget--tables)))
+                             (overlays (copy-sequence org-table-widget--overlays))
+                             (next (cdr table))
+                             (this-command command)
+                             (current-prefix-arg nil))
+                        (org-fold-hide-subtree)
+                        (should (invisible-p (car table)))
+                        (goto-char (if (eq command 'next-line) (point-min) next))
+                        (run-hooks 'pre-command-hook)
+                        (call-interactively command)
+                        ;; Native line motion already skips the folded subtree.
+                        (should (= (point) (if (eq command 'next-line)
+                                               next (point-min))))
+                        (run-hooks 'post-command-hook)
+                        (ert-info ((format "%S, reveal %S, %S" style reveal command))
+                          (should (= (point) (if (eq command 'next-line)
+                                                 next (point-min))))
+                          (should-not (invisible-p (point)))
+                          (should (equal overlays org-table-widget--overlays))
+                          (should-not org-table-widget--inside-table)))
+                    (org-table-widget-mode -1)))))))))))
+
 (ert-deftest org-table-widget-rest-reveals-search-match ()
   (org-table-widget-tests--with-org "Before\n| key |\n| value |\nAfter\n"
     (save-window-excursion

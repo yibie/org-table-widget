@@ -1242,14 +1242,15 @@ the widget was revealed."
 Display-based motion can skip widget rows, which are drawn by
 before-strings, and land past the row next to PREVIOUS.  Return the
 start of that row when point is past it, or nil.  Motion by more than
-one line is left alone."
+one line is left alone.  Rows hidden by folding are skipped."
   (let ((point (point))
         stop)
     (when (eql (abs (prefix-numeric-value current-prefix-arg)) 1)
       (dolist (overlay (overlays-in (min point previous) (max point previous)))
         (when (overlay-get overlay 'org-table-widget)
           (let ((start (overlay-start overlay)))
-            (when (and (< (min point previous) start (max point previous))
+            (when (and (not (invisible-p start))
+                       (< (min point previous) start (max point previous))
                        (or (null stop)
                            (if (> point previous) (< start stop) (> start stop))))
               (setq stop start))))))
