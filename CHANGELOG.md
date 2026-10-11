@@ -14,10 +14,13 @@
 
 ### Fixes
 
+- Measure text on a line of its own. An overlay string displayed at the end of
+  the buffer was measured along with every non-empty string, so cells came out
+  narrower than their column: rows drifted right at each empty cell and the
+  rules fell short of the rows.
 - Skip table rows inside folded headings during line motion.  The cursor
   correction previously stopped on hidden widget rows after Org had already
   moved past the folded subtree, adding extra navigation steps.
-
 - Lay tables out again once `org-indent-mode` has added its line prefixes.
   org-indent prefixes a newly opened buffer from an idle timer that fires after
   the tables are laid out, so every table was one indentation too wide and its

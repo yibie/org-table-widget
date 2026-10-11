@@ -928,6 +928,23 @@
           (should (equal numbers '(nil)))
           (should (eq display-line-numbers t)))))))
 
+(ert-deftest org-table-widget-measure-isolates-probe-line ()
+  ;; An overlay string shown at the end of the buffer must not be
+  ;; measured along with the probe.
+  (with-temp-buffer
+    (insert "Source")
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let (measured)
+        (cl-letf (((symbol-function 'window-text-pixel-size)
+                   (lambda (_window from to &rest _)
+                     (setq measured (list (buffer-substring from to)
+                                          (char-before from) (char-after to)))
+                     '(10 . 10))))
+          (org-table-widget--measure-string "probe" (selected-window))
+          (should (equal measured '("probe" ?\n ?\n)))
+          (should (equal (buffer-string) "Source")))))))
+
 (ert-deftest org-table-widget-prefix-reduces-layout-budgets-and-invalidates-cache ()
   (require 'textui)
   (org-table-widget-tests--with-org "| a | b |\n"

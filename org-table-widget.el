@@ -166,7 +166,9 @@ VALIDITY records the fonts the measurements were taken with.")
 (defun org-table-widget--measure-string (str window)
   "Return the pixel width of STR rendered at the end of WINDOW's buffer.
 STR is pinned to `fixed-pitch' so the result does not depend on
-`variable-pitch-mode' remapping the default face."
+`variable-pitch-mode' remapping the default face.  It is measured on a
+line of its own: overlay strings displayed at the end of the buffer
+would otherwise be measured along with every non-empty STR."
   (let ((str (copy-sequence str)))
     (add-face-text-property 0 (length str) 'fixed-pitch nil str)
     (with-current-buffer (window-buffer window)
@@ -186,13 +188,14 @@ STR is pinned to `fixed-pitch' so the result does not depend on
             (let ((beg (point)) end)
               (unwind-protect
                   (progn
-                    (insert str)
+                    (insert "\n" str "\n")
                     (setq end (point))
                     (put-text-property beg end 'fontified t)
                     (remove-text-properties beg end
                                             '(line-prefix nil wrap-prefix nil))
                     (car (window-text-pixel-size
-                          window beg end org-table-widget--measure-x-limit)))
+                          window (1+ beg) (1- end)
+                          org-table-widget--measure-x-limit)))
                 ;; Redisplay/fontification may move point.  Delete only the
                 ;; inserted probe, even if measurement signals an error.
                 (when end (delete-region beg end))
