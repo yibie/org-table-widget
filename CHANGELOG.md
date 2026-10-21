@@ -14,6 +14,10 @@
 
 ### Fixes
 
+- Let Evil's `gg` and `G` jump past tables. Evil reports these jumps as
+  `next-line`, so the row stop meant for line motion caught them and left point
+  on the table's first or last row. Only commands that move by a line now stop
+  on rows. Reported by @pastnontra and @JonathanReeve (#5).
 - Measure text on a line of its own. An overlay string displayed at the end of
   the buffer was measured along with every non-empty string, so cells came out
   narrower than their column: rows drifted right at each empty cell and the

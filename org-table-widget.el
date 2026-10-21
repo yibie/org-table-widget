@@ -1240,6 +1240,14 @@ the widget was revealed."
       (goto-char start)
       nil))))
 
+(defconst org-table-widget--line-motion-commands
+  '(previous-line next-line
+    evil-previous-line evil-next-line
+    evil-previous-visual-line evil-next-visual-line)
+  "Commands that move point by lines.
+Evil sets `this-command' to `next-line' in jumps such as gg and G, so
+the command invoked is checked as well.")
+
 (defun org-table-widget--vertical-stop (previous)
   "Return the widget row vertical motion from PREVIOUS should stop at.
 Display-based motion can skip widget rows, which are drawn by
@@ -1267,6 +1275,8 @@ Leaving a revealed table lays it out again."
   (let* ((previous (and org-table-widget--previous-point
                         (marker-position org-table-widget--previous-point)))
          (vertical-motion (and (memq this-command '(previous-line next-line))
+                               (memq real-this-command
+                                     org-table-widget--line-motion-commands)
                                previous))
          (stop (and vertical-motion
                     (org-table-widget--vertical-stop previous)))
