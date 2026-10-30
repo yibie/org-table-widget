@@ -14,6 +14,9 @@
 
 (require 'ert)
 (require 'cl-lib)
+(require 'dom)
+(require 'face-remap)
+(require 'xml)
 (require 'org-table-widget)
 
 (defun org-table-widget-tests--pixels (string)
@@ -30,6 +33,20 @@
              ((symbol-function 'org-table-widget--pixel-budget)
               (lambda (width _window) (* 10 width))))
      ,@body))
+
+(defmacro org-table-widget-tests--with-svg-mocks (&rest body)
+  "Run BODY through the SVG renderer with deterministic font metrics."
+  (declare (indent 0) (debug t))
+  `(org-table-widget-tests--with-pixel-mocks
+    (cl-letf (((symbol-function 'window-system) (lambda (&optional _) 'x))
+              ((symbol-function 'image-type-available-p)
+               (lambda (type) (eq type 'svg)))
+              ((symbol-function 'display-supports-face-attributes-p)
+               (lambda (&rest _) t))
+              ((symbol-function 'font-at) (lambda (&rest _) 'test-font))
+              ((symbol-function 'query-font)
+               (lambda (_) [nil nil nil nil 20 5])))
+      ,@body)))
 
 (defmacro org-table-widget-tests--with-org (text &rest body)
   "Run BODY in an Org buffer containing TEXT."
@@ -127,6 +144,119 @@
      (should (string-prefix-p "├" (nth 2 lines)))
      (should (string-prefix-p "├" (nth 4 lines)))
      (should (string-prefix-p "└" (nth 6 lines))))))
+
+(ert-deftest org-table-widget-render-svg-borders ()
+  (require 'textui)
+  (org-table-widget-tests--with-org
+      "| Head | Value |\n|------+-------|\n| a | First |\n|---+---|\n| b | One long entry with multiple words that wrap in a narrow column. |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (select-window (split-window-right))
+      (face-remap-set-base 'default '(:background "white"))
+      (face-remap-set-base 'org-table-widget-header '(:background "yellow"))
+      (face-remap-set-base 'org-table-widget-zebra '(:background "cyan"))
+      (face-remap-add-relative
+       'org-table-widget-zebra
+       '(:filtered (:window org-table-widget-zebra-test t) (:background "magenta")))
+      (face-remap-set-base 'org-table-widget-border '(:inherit shadow))
+      (face-remap-add-relative 'shadow :foreground "blue")
+      (face-remap-add-relative
+       'org-table-widget-border
+       '(:filtered (:window org-table-widget-test t) (:foreground "red")))
+      (let ((org-table-widget-border-style 'svg))
+        (org-table-widget-tests--with-svg-mocks
+          (dolist (case '((t . "#ff0000") (nil . "#0000ff")))
+            (dolist (window (get-buffer-window-list nil nil t))
+              (set-window-parameter window 'org-table-widget-test (car case)))
+            (set-window-parameter (previous-window) 'org-table-widget-zebra-test
+                                  (not (car case)))
+            (org-table-widget--clear)
+            (let ((org-table-widget-zebra-stripe (car case)))
+              (org-table-widget--display-table
+               (point-min) (point-max) (selected-window) 40))
+            (should (= (length org-table-widget--overlays) 5))
+            (let ((rules 0) backgrounds lines)
+              (dolist (overlay org-table-widget--overlays)
+                (let ((string (overlay-get overlay 'before-string)))
+                  ;; Every source row has one cursor.
+                  (should (get-text-property 0 'cursor string))
+                  (should-not (text-property-not-all 1 (length string)
+                                                     'cursor nil string))
+                  (setq lines (nconc lines (split-string string "\n" t)))))
+              ;; Include wrapped lines and the bottom border.
+              (should (> (length lines) 7))
+              (dolist (line lines)
+                (let* ((display (get-text-property 0 'display line))
+                       (image (if (eq (car display) 'image) display (cadr display)))
+                       (svg (with-temp-buffer
+                              (insert (plist-get (cdr image) :data))
+                              (car (xml-parse-region (point-min) (point-max)))))
+                       (rects (dom-by-tag svg 'rect)))
+                  (when (get-text-property 0 'cursor line)
+                    (should (= (if (eq (car display) 'image)
+                                   (string-to-number (dom-attr svg 'width))
+                                 (nth 3 (car display)))
+                               10)))
+                  ;; The left stroke stays centered within a character.
+                  (should (seq-some (lambda (rect)
+                                      (and (equal (dom-attr rect 'width) "1")
+                                           (equal (dom-attr rect 'x) "4")))
+                                    rects))
+                  (dolist (rect rects)
+                    (cond
+                     ((equal (dom-attr rect 'height) "1")
+                      ;; Rules run through the middle of the line.
+                      (cl-incf rules)
+                      (should (equal (dom-attr rect 'y) "12"))
+                      (should (equal (dom-attr rect 'fill) (cdr case))))
+                     ((equal (dom-attr rect 'width) "1")
+                      (should (equal (dom-attr rect 'fill) (cdr case))))
+                     (t
+                      ;; Row fills stop at the inner side of the border.
+                      (should (equal (dom-attr rect 'x) "5"))
+                      (cl-pushnew (dom-attr rect 'fill) backgrounds
+                                  :test #'equal))))))
+              (should (= rules 4))
+              (should (equal (sort backgrounds #'string-lessp)
+                             (if (car case) '("#00ffff" "#ffff00")
+                               '("#ffff00")))))))))))
+
+(ert-deftest org-table-widget-svg-fallback-preserves-text-borders ()
+  (org-table-widget-tests--with-org ""
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((other (split-window-right))
+            (table '(:rows (("A" "B") hline ("1" "2"))
+                           :alignments (left left) :header-rows 1)))
+        (face-remap-set-base 'default '(:background "white"))
+        (face-remap-set-base 'org-table-widget-border '(:foreground "blue"))
+        (face-remap-add-relative
+         'org-table-widget-border
+         '(:filtered (:window org-table-widget-test t) (:foreground "red")))
+        (org-table-widget-tests--with-svg-mocks
+          (dolist (unicode '(nil t))
+            (let* ((org-table-widget-use-unicode-borders unicode)
+                   (org-table-widget-border-style 'unicode)
+                   (text (org-table-widget--render table (selected-window) 40)))
+              (should (string-prefix-p (if unicode "┌" "+") text))
+              ;; Explicit ASCII also works when the old option is t.
+              (unless unicode
+                (let ((org-table-widget-border-style 'ascii)
+                      (org-table-widget-use-unicode-borders t))
+                  (should (equal-including-properties
+                           text (org-table-widget--render
+                                 table (selected-window) 40)))))
+              (dolist (missing '(svg stipple colors))
+                (set-window-parameter other 'org-table-widget-test
+                                      (eq missing 'colors))
+                (cl-letf (((symbol-function 'image-type-available-p)
+                           (lambda (_) (not (eq missing 'svg))))
+                          ((symbol-function 'display-supports-face-attributes-p)
+                           (lambda (&rest _) (not (eq missing 'stipple)))))
+                  (let ((org-table-widget-border-style 'svg))
+                    (should (equal-including-properties
+                             text (org-table-widget--render
+                                   table (selected-window) 40)))))))))))))
 
 (ert-deftest org-table-widget-render-header-face ()
   (org-table-widget-tests--with-pixel-mocks

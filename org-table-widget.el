@@ -52,8 +52,11 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'color)
+(require 'face-remap)
 (require 'seq)
 (require 'subr-x)
+(require 'svg)
 (require 'wid-edit)
 (require 'org)
 (require 'org-table)
@@ -69,9 +72,24 @@
   :group 'org
   :prefix "org-table-widget-")
 
+(defcustom org-table-widget-border-style 'unicode
+  "How to draw table borders: Unicode, ASCII or SVG.
+With `svg', draw pixel-wide borders when SVG images and stippled
+backgrounds are supported and visible windows share border and row colors.
+Otherwise fall back to Unicode or ASCII according to
+`org-table-widget-use-unicode-borders'.  For compatibility, a nil value
+of that option also selects ASCII with the default `unicode' style.
+Run `org-table-widget-refresh' after changing faces to update SVG colors."
+  :type '(choice (const :tag "Unicode" unicode)
+                 (const :tag "ASCII" ascii)
+                 (const :tag "SVG" svg)))
+
 (defcustom org-table-widget-use-unicode-borders t
-  "When non-nil, draw table borders with box-drawing characters.
-Otherwise use ASCII pipes, plus signs and dashes."
+  "Whether to use Unicode text borders instead of ASCII.
+This is kept for compatibility.  Prefer `org-table-widget-border-style'
+for new configurations.  Nil selects ASCII when the style is `unicode',
+or when the style is `svg' but SVG borders cannot be used.
+The `ascii' style always uses ASCII, regardless of this option."
   :type 'boolean)
 
 (defcustom org-table-widget-zebra-stripe t
@@ -541,23 +559,136 @@ are rounded so the widths sum exactly to the available pixels."
                   'org-table-widget-spacing t)
     ""))
 
+(defun org-table-widget--svg-borders-p (window)
+  "Return non-nil when SVG borders are selected and supported in WINDOW."
+  (and (eq org-table-widget-border-style 'svg)
+       (window-live-p window)
+       (window-system (window-frame window))
+       (image-type-available-p 'svg)
+       (display-supports-face-attributes-p
+        '(:stipple (1 1 "\1")) (window-frame window))))
+
+(defun org-table-widget--svg-colors (window)
+  "Return the remapped border and enabled row colors in WINDOW as an alist."
+  (with-selected-window window
+    ;; Native face merging has no window argument.  Resolve window filters
+    ;; once, leaving inheritance and remapping precedence to Emacs.
+    (cl-labels ((resolve (spec)
+                  (pcase spec
+                    (`(:filtered (:window ,parameter ,value) ,face)
+                     (when (or face-filters-always-match
+                               (let ((entry (assq parameter
+                                                  (window-parameters window))))
+                                 (and entry (eq (cdr entry) value))))
+                       (resolve face)))
+                    (`(,head . ,tail)
+                     (cons (resolve head) (resolve tail)))
+                    (_ spec))))
+      (let ((face-remapping-alist (resolve face-remapping-alist)))
+        (mapcar
+         (lambda (face)
+           (let* ((attribute (if (eq face 'org-table-widget-border)
+                                 :foreground :background))
+                  (attributes (face-attributes-as-vector (list face 'default)))
+                  (color (aref attributes
+                               (cl-position attribute internal-lisp-face-attributes))))
+             (cons face (apply #'color-rgb-to-hex
+                               (append (color-name-to-rgb
+                                        color (window-frame window)) '(2))))))
+         (append '(org-table-widget-border default org-table-widget-header)
+                 (when org-table-widget-zebra-stripe '(org-table-widget-zebra))))))))
+
+(defun org-table-widget--svg-boundary (pixels color)
+  "Return a vertical border PIXELS wide in COLOR.
+The background fills the display line, including taller fallback
+fonts and line spacing."
+  (propertize (org-table-widget--pixel-space pixels)
+              'face `(:background ,color)))
+
+(defun org-table-widget--window-left (window)
+  "Return WINDOW's text origin in pixels from its frame's left edge.
+Use the displayed line number width, not the space reserved for layout."
+  (with-selected-window window
+    (- (+ (car (window-inside-pixel-edges window))
+          (line-number-display-width t))
+       (* (window-hscroll window) (frame-char-width (window-frame window))))))
+
+(defun org-table-widget--window-origins ()
+  "Return the horizontal text origins of the windows showing this buffer.
+Traverse each frame from its first window, independently of selection."
+  (cl-loop for frame in (frame-list)
+           append (cl-loop for window in (window-list frame 'no-minibuf
+                                                      (frame-first-window frame))
+                           when (eq (window-buffer window) (current-buffer))
+                           collect (cons window
+                                         (org-table-widget--window-left window)))))
+
+(defun org-table-widget--svg-state (window)
+  "Return SVG colors and window origins for the current buffer.
+WINDOW is the layout window.
+If windows cannot share SVG colors, keep the origins but use text borders."
+  (when (org-table-widget--svg-borders-p window)
+    (let* ((origins (org-table-widget--window-origins))
+           (colors (org-table-widget--svg-colors window)))
+      (list :origins origins
+            :colors (when (seq-every-p
+                           (lambda (origin)
+                             (let ((shown (car origin)))
+                               (or (eq shown window)
+                                   (and (org-table-widget--svg-borders-p shown)
+                                        (equal colors
+                                               (org-table-widget--svg-colors shown))))))
+                           origins)
+                      colors)))))
+
+(defun org-table-widget--svg-cursor-face (window prefix color background origins)
+  "Return a face drawing a centered border in COLOR in WINDOW.
+PREFIX is the table's indentation in pixels.  Stipples follow the full
+line height, including fallback fonts and line spacing.
+Their origin is frame-relative, so each window needs its own pattern.
+BACKGROUND masks the half-character outside the border.
+ORIGINS lists the text origins of windows showing this buffer."
+  (let* ((width (org-table-widget--char-pixel-width window))
+         (offset (+ prefix (/ (1- width) 2))))
+    (cons
+     ;; An inset box masks the outside without changing the cursor width.
+     ;; The following padding keeps the box open on the inside.
+     `(:foreground ,color
+       :box (:line-width (,(- (/ (1- width) 2)) . 0) :color ,background))
+     (mapcar
+      (lambda (origin)
+        (let* ((shown (car origin))
+               (pixel (mod (+ (cdr origin) offset) width))
+               (bits (make-string (ceiling width 8) 0)))
+          (aset bits (/ pixel 8) (ash 1 (mod pixel 8)))
+          ;; Cached faces in other buffers also use this window identity.
+          (set-window-parameter shown 'org-table-widget-window shown)
+          `(:filtered (:window org-table-widget-window ,shown)
+                      (:stipple (,width 1 ,bits)))))
+      origins))))
+
 (defun org-table-widget--boundary (glyph pixels window)
   "Return GLYPH normalized to PIXELS of horizontal advance in WINDOW."
   (let ((glyph-pixels (org-table-widget--measure-string glyph window)))
     (concat (propertize glyph 'face 'org-table-widget-border)
             (org-table-widget--pixel-space (max 0 (- pixels glyph-pixels))))))
 
+(defun org-table-widget--unicode-borders-p ()
+  "Return non-nil when text borders should use Unicode characters."
+  (and (not (eq org-table-widget-border-style 'ascii))
+       org-table-widget-use-unicode-borders))
+
 (defun org-table-widget--boundary-pixels (window)
-  "Return one normalized boundary width for all border glyphs in WINDOW."
+  "Return one normalized text boundary width in WINDOW."
   (apply #'max
          (mapcar (lambda (glyph) (org-table-widget--measure-string glyph window))
-                 (if org-table-widget-use-unicode-borders
+                 (if (org-table-widget--unicode-borders-p)
                      '("│" "┌" "┬" "┐" "├" "┼" "┤" "└" "┴" "┘")
                    '("|" "+")))))
 
 (defun org-table-widget--rule-segment (pixels window)
   "Return a horizontal rule occupying PIXELS in WINDOW."
-  (let* ((glyph (if org-table-widget-use-unicode-borders "─" "-"))
+  (let* ((glyph (if (org-table-widget--unicode-borders-p) "─" "-"))
          (glyph-pixels (max 1 (org-table-widget--measure-string glyph window)))
          (count (floor (/ (float pixels) glyph-pixels)))
          (remainder (- pixels (* count glyph-pixels))))
@@ -565,8 +696,118 @@ are rounded so the widths sum exactly to the available pixels."
                         (org-table-widget--pixel-space remainder))
                 'face 'org-table-widget-border)))
 
+(defun org-table-widget--svg-metrics (window)
+  "Return (HEIGHT . ASCENT) for a font-sized SVG in WINDOW.
+ASCENT is a percentage suitable for `svg-image'."
+  ;; Explicit `default' makes `font-at' include text scaling.
+  (let* ((sample (propertize " " 'face '(fixed-pitch default)))
+         (font (font-at 0 window sample)))
+    (seq-let (_ _ _ _ ascent descent) (query-font font)
+      (let ((height (+ ascent descent)))
+        (cons height (ceiling (* 100 ascent) height))))))
+
+(defun org-table-widget--svg-cursor (window face color metrics background)
+  "Return a character-wide SVG border for WINDOW, extended by FACE.
+COLOR and METRICS specify its color and font dimensions.
+BACKGROUND fills the inside of the border.
+FACE draws through any extra line height below or above the image.
+Emacs may replace the user's cursor style with a hollow box on images."
+  (let* ((width (org-table-widget--char-pixel-width window))
+         (svg (svg-create width (car metrics))))
+    (svg-rectangle svg (/ (1- width) 2) 0 1 (car metrics)
+                   :fill color)
+    (propertize " " 'face (cons `(:background ,background) face)
+                'display (svg-image svg :ascent (cdr metrics) :scale 1
+                                    :background background))))
+
+(defun org-table-widget--svg-rule (widths boundary-pixels window color metrics
+                                          backgrounds &optional edge cursor-face)
+  "Build an SVG rule for WIDTHS with BOUNDARY-PIXELS wide borders in WINDOW.
+COLOR and METRICS specify its color and font dimensions.
+EDGE is `top', `bottom', or nil for an internal rule.
+CURSOR-FACE extends the left border through extra line height.
+BACKGROUNDS is (DEFAULT ABOVE BELOW), the colors around the rule."
+  (let* ((char-width (org-table-widget--char-pixel-width window))
+         (height (car metrics))
+         (image-ascent (cdr metrics))
+         (middle (/ height 2))
+         (bottom (eq edge 'bottom))
+         (background (car backgrounds))
+         (above (nth 1 backgrounds))
+         (below (nth 2 backgrounds))
+         (stroke (unless bottom
+                   (if (eq edge 'top)
+                       (let ((svg (svg-create boundary-pixels height)))
+                         (svg-rectangle svg 0 middle boundary-pixels
+                                        (- height middle) :fill color)
+                         (propertize " " 'display
+                                     (svg-image svg :ascent image-ascent :scale 1
+                                                :background background)
+                                     'face `(:foreground ,color
+                                             :stipple (1 1 "\1"))))
+                     (propertize
+                      (org-table-widget--svg-boundary boundary-pixels color)
+                      'display `(space :width (,boundary-pixels)
+                                       :height (,height) :ascent ,image-ascent)))))
+         (rule (lambda (width &optional cursor)
+                 (let* ((svg (svg-create width height))
+                        (outer (or cursor bottom))
+                        (left (if outer (/ (1- char-width) 2) 0))
+                        (inside (if outer (+ left boundary-pixels) 0))
+                        (span (- width inside (if bottom boundary-pixels 0))))
+                   ;; Fill only between the inner edges of the outer borders.
+                   ;; The image already supplies the default background.
+                   (if (equal above below)
+                       (unless (equal above background)
+                         (svg-rectangle svg inside 0 span height :fill above))
+                     (unless (equal above background)
+                       (svg-rectangle svg inside 0 span middle :fill above))
+                     (unless (equal below background)
+                       (svg-rectangle svg inside middle span (- height middle)
+                                      :fill below)))
+                   (svg-rectangle svg left middle (- width left)
+                                  boundary-pixels :fill color)
+                   (cond
+                    (bottom
+                     (svg-rectangle svg left 0 boundary-pixels middle
+                                    :fill color)
+                     (let ((x 0))
+                       (dolist (cell widths)
+                         (setq x (+ x cell boundary-pixels))
+                         (svg-rectangle svg x 0 boundary-pixels middle
+                                        :fill color))))
+                    (cursor
+                     (let ((y (if (eq edge 'top) middle 0)))
+                       (svg-rectangle svg left y boundary-pixels (- height y)
+                                      :fill color))))
+                   (let ((image (svg-image svg :ascent image-ascent :scale 1
+                                           :background background)))
+                     (if cursor
+                         ;; Cell padding guarantees room for both slices.
+                         ;; Share the image and keep the cursor character-wide.
+                         (concat
+                          (propertize " " 'face (cons `(:background ,below)
+                                                      cursor-face)
+                                      'display
+                                      `((slice 0 0 ,char-width ,height) ,image))
+                          (propertize
+                           " " 'face `(:background ,below :box (0 . 0)) 'display
+                           `((slice ,char-width 0 ,(- width char-width) ,height)
+                             ,image)))
+                       (propertize " " 'display image
+                                   'face (unless bottom
+                                           `(:background ,below)))))))))
+    (if bottom
+        (funcall rule (+ (apply #'+ widths)
+                         (* (1+ (length widths)) boundary-pixels)))
+      (concat (funcall rule (+ (car widths) boundary-pixels) t)
+              (mapconcat (lambda (width)
+                           (concat stroke (funcall rule width)))
+                         (cdr widths) "")
+              stroke))))
+
 (defun org-table-widget--rule (widths left join right boundary-pixels window)
-  "Build a rule for WIDTHS in WINDOW.
+  "Build a text rule for WIDTHS in WINDOW.
 LEFT, JOIN and RIGHT are normalized to BOUNDARY-PIXELS."
   (concat
    (org-table-widget--boundary left boundary-pixels window)
@@ -593,13 +834,11 @@ LEFT, JOIN and RIGHT are normalized to BOUNDARY-PIXELS."
             (org-table-widget--pixel-space (cdr widths)))))
 
 (defun org-table-widget--row (cells widths alignments row-face boundary-pixels
-                                    window)
+                                    window border &optional cursor)
   "Render CELLS at pixel WIDTHS with ALIGNMENTS and ROW-FACE in WINDOW.
-BOUNDARY-PIXELS is the uniform advance of every vertical border."
-  (let* ((border (if org-table-widget-use-unicode-borders "│" "|"))
-         (styled-border (org-table-widget--boundary border boundary-pixels
-                                                    window))
-         (space-pixels (org-table-widget--char-pixel-width window))
+BORDER is the vertical border with BOUNDARY-PIXELS of horizontal advance.
+CURSOR, when non-nil, is the character-wide SVG left border."
+  (let* ((space-pixels (org-table-widget--char-pixel-width window))
          (content-widths (mapcar (lambda (width)
                                    (max 1 (- width (* 2 space-pixels))))
                                  widths))
@@ -620,9 +859,16 @@ BOUNDARY-PIXELS is the uniform advance of every vertical border."
                (add-face-text-property 0 (length cell) row-face t cell))
              (push cell parts)))
          wrapped content-widths alignments)
-        (push (concat styled-border
-                      (string-join (nreverse parts) styled-border)
-                      styled-border)
+        (setq parts (nreverse parts))
+        (when cursor
+          ;; The first character carries the cursor and the outer border.
+          ;; Reduce the first cell's padding to keep its content in place.
+          (put-text-property 0 1 'display
+                             `(space :width (,boundary-pixels)) (car parts))
+          (add-face-text-property 0 1 '(:box (0 . 0)) nil (car parts)))
+        (push (concat (or cursor border)
+                      (string-join parts border)
+                      border)
               lines)))
     (string-join (nreverse lines) "\n")))
 
@@ -633,14 +879,15 @@ LINE is an offset from the first line of the table, or nil."
     (put-text-property 0 (length string) 'org-table-widget-line line string))
   string)
 
-(defun org-table-widget--render (table window width &optional pixel-budget)
+(defun org-table-widget--render (table window width &optional pixel-budget svg-state)
   "Lay TABLE out for WINDOW at WIDTH columns and return the string.
 TABLE is a plist with :rows (cell lists or `hline'), :alignments,
 :header-rows, the number of leading rows before the first `hline',
 and optionally :lines, the source line offset of each row.  Every row
 is drawn with its source line in the `org-table-widget-line' property;
 the top and bottom borders go with the first and last rows.
-PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
+PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget.
+SVG-STATE supplies indentation, colors and window origins for layout."
   (let* ((rows (plist-get table :rows))
          (lines (plist-get table :lines))
          (alignments (plist-get table :alignments))
@@ -648,19 +895,60 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
          (columns (length alignments))
          (pixel-budget (or pixel-budget
                            (org-table-widget--pixel-budget width window)))
-         (boundary-pixels (org-table-widget--boundary-pixels window))
+         (svg-state (or svg-state (org-table-widget--svg-state window)))
+         (colors (plist-get svg-state :colors))
+         (color (alist-get 'org-table-widget-border colors))
+         (metrics (when colors (org-table-widget--svg-metrics window)))
+         (row-faces
+          (let ((index 0))
+            (cl-loop for row in rows
+                     unless (eq row 'hline)
+                     collect (prog1
+                                 (cond ((< index header-rows)
+                                        'org-table-widget-header)
+                                       ((and org-table-widget-zebra-stripe
+                                             (= (mod (- index header-rows) 2) 1))
+                                        'org-table-widget-zebra))
+                               (setq index (1+ index))))))
+         (boundary-pixels (if colors 1
+                            (org-table-widget--boundary-pixels window)))
          (widths (org-table-widget--widths rows columns pixel-budget
                                            boundary-pixels window))
-         (unicode org-table-widget-use-unicode-borders)
+         (cursor-face (when colors
+                        (org-table-widget--svg-cursor-face
+                         window (or (plist-get svg-state :prefix) 0)
+                         color (alist-get 'default colors)
+                         (plist-get svg-state :origins))))
+         cursors
+         (cursor (lambda (face)
+                   (let ((background (alist-get (or face 'default) colors)))
+                     (or (alist-get background cursors nil nil #'equal)
+                         (setf (alist-get background cursors nil nil #'equal)
+                               (org-table-widget--svg-cursor
+                                window cursor-face color metrics background))))))
+         (unicode (org-table-widget--unicode-borders-p))
+         (border (if colors
+                     (org-table-widget--svg-boundary boundary-pixels color)
+                   (org-table-widget--boundary (if unicode "│" "|")
+                                               boundary-pixels window)))
+         (rule (lambda (glyphs &optional edge above below)
+                 (if colors
+                     (org-table-widget--svg-rule widths boundary-pixels window
+                                                 color metrics
+                                                 (mapcar (lambda (face)
+                                                           (alist-get (or face 'default)
+                                                                      colors))
+                                                         (list nil above below))
+                                                 edge cursor-face)
+                   (apply #'org-table-widget--rule
+                          (append (list widths) glyphs
+                                  (list boundary-pixels window))))))
          (top (if unicode '("┌" "┬" "┐") '("+" "+" "+")))
          (middle (if unicode '("├" "┼" "┤") '("|" "|" "|")))
          (bottom (if unicode '("└" "┴" "┘") '("+" "+" "+")))
-         (row-index 0)
-         (data-row-index 0)
+         previous-face
          (parts (list (org-table-widget--source-line
-                       (apply #'org-table-widget--rule
-                              (append (list widths) top
-                                      (list boundary-pixels window)))
+                       (funcall rule top 'top nil (car row-faces))
                        (car lines)))))
     (cl-loop
      for row in rows
@@ -668,28 +956,23 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
      do (push
          (org-table-widget--source-line
           (if (eq row 'hline)
-              (apply #'org-table-widget--rule
-                     (append (list widths) middle
-                             (list boundary-pixels window)))
-            (let* ((header (< row-index header-rows))
-                   (row-face (cond (header 'org-table-widget-header)
-                                   ((and org-table-widget-zebra-stripe
-                                         (= (mod data-row-index 2) 1))
-                                    'org-table-widget-zebra))))
-              (unless header
-                (setq data-row-index (1+ data-row-index)))
-              (setq row-index (1+ row-index))
-              (org-table-widget--row row widths alignments row-face
-                                     boundary-pixels window)))
+              (funcall rule middle nil previous-face (car row-faces))
+            (setq previous-face (pop row-faces))
+            (org-table-widget--row row widths alignments previous-face
+                                   boundary-pixels window border
+                                   (when colors (funcall cursor previous-face))))
           line)
          parts))
     (push (org-table-widget--source-line
-           (apply #'org-table-widget--rule
-                  (append (list widths) bottom (list boundary-pixels window)))
+           (funcall rule bottom 'bottom previous-face)
            (car (last (plist-get table :lines))))
           parts)
     (let ((rendered (string-join (nreverse parts) "\n")))
       (add-face-text-property 0 (length rendered) 'fixed-pitch nil rendered)
+      ;; Replacement newlines must not add height to the rendered rows.
+      ;; Keep this property local to the preview.
+      (when colors
+        (put-text-property 0 (length rendered) 'line-height t rendered))
       rendered)))
 
 ;;;; TextUI widget
@@ -702,7 +985,8 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
                     (selected-window))))
     (org-table-widget--with-cached-measurements window
       (org-table-widget--render table window width
-                                (widget-get widget :pixel-budget)))))
+                                (widget-get widget :pixel-budget)
+                                (widget-get widget :svg-state)))))
 
 (define-widget 'org-table-widget 'default
   "A width-aware Org table."
@@ -929,9 +1213,14 @@ above them."
         (if (eql line (caar rows))
             (push text (cdar rows))
           (push (list line text) rows))))
-    (let ((first t))
+    (let ((first t)
+          (height (get-text-property 0 'line-height rendered)))
       (mapcar (lambda (row)
                 (let ((string (string-join (nreverse (cdr row)) "\n")))
+                  ;; `string-join' introduces newlines without properties.
+                  (when height
+                    (put-text-property 0 (length string) 'line-height
+                                       height string))
                   ;; Draw the cursor on the top-left corner while point
                   ;; rests on the row.
                   (put-text-property 0 1 'cursor t string)
@@ -939,10 +1228,11 @@ above them."
                     (setq first nil))))
               (nreverse rows)))))
 
-(defun org-table-widget--display-table (beg end window width)
+(defun org-table-widget--display-table (beg end window width &optional svg-state)
   "Cover the table between BEG and END with a widget for WINDOW at WIDTH.
 Each row of the widget is displayed by its own overlay, over the source
-lines it was drawn from.  Return the overlay of the first row."
+lines it was drawn from.  Return the overlay of the first row.
+SVG-STATE shares window origins and colors across tables in one refresh."
   (let ((gc-cons-threshold (max gc-cons-threshold
                                 org-table-widget--layout-gc-threshold)))
     (font-lock-ensure beg end)
@@ -961,12 +1251,18 @@ lines it was drawn from.  Return the overlay of the first row."
            (columns (max 1 (- width (ceiling inset column-pixels))))
            (pixel-budget (max 1 (- (org-table-widget--pixel-budget width window)
                                    inset)))
+           (svg-state (when-let* ((state (or svg-state
+                                            (org-table-widget--svg-state window))))
+                        (cons :prefix (cons prefix state))))
+           (svg (plist-get svg-state :colors))
            (key (list (secure-hash 'sha1 (current-buffer) beg end)
                       ;; Preserve changes to faces, hidden links and other
                       ;; properties even when source characters stay the same.
                       (sxhash-equal-including-properties (buffer-substring beg end))
                       width (window-body-width window t) inset
+                      svg-state
                       (org-table-widget--font-signature window)
+                      org-table-widget-border-style
                       org-table-widget-use-unicode-borders
                       org-table-widget-zebra-stripe org-table-widget-wrap-columns
                       org-table-widget-max-width-fraction
@@ -976,7 +1272,8 @@ lines it was drawn from.  Return the overlay of the first row."
         (setq cached nil)
         (when-let* ((table (org-table-widget--parse beg end)))
           (let* ((widget (widget-convert 'org-table-widget :value table
-                                         :window window :pixel-budget pixel-budget))
+                                         :window window :pixel-budget pixel-budget
+                                         :svg-state svg-state))
                  (rows (org-table-widget--split
                         (textui-layout-widget widget columns))))
             (widget-put widget :sticky-header
@@ -1016,6 +1313,10 @@ lines it was drawn from.  Return the overlay of the first row."
               (overlay-put overlay 'display
                            (copy-sequence
                             (if (eq (char-before row-end) ?\n) "\n" " ")))
+              (when svg
+                (overlay-put overlay 'line-height t)
+                (put-text-property 0 1 'line-height t
+                                   (overlay-get overlay 'display)))
               (overlay-put overlay 'keymap org-table-widget-map)
               (overlay-put overlay 'evaporate t)
               (overlay-put overlay 'modification-hooks
@@ -1056,12 +1357,13 @@ The table point is editing is left as source."
   (let ((window (org-table-widget--window)))
     (when (and (window-live-p window) (display-graphic-p (window-frame window)))
       (let ((width (org-table-widget--layout-width window))
-            (point (point)))
+            (point (point))
+            (svg-state (org-table-widget--svg-state window)))
         (save-excursion
           (dolist (table (org-table-widget--tables))
             (unless (org-table-widget--editing-p table point)
               (org-table-widget--display-table (car table) (cdr table)
-                                               window width))))
+                                               window width svg-state))))
         (setq org-table-widget--width width))))
   (org-table-widget--update-sticky-header))
 
@@ -1071,13 +1373,14 @@ The table point is editing is left as source."
     (when (and (window-live-p window) (display-graphic-p (window-frame window)))
       (let ((width (or org-table-widget--width
                        (org-table-widget--layout-width window)))
-            (point (point)))
+            (point (point))
+            (svg-state (org-table-widget--svg-state window)))
         (save-excursion
           (dolist (table (org-table-widget--tables))
             (unless (or (org-table-widget--overlay-at (car table))
                         (org-table-widget--editing-p table point))
               (org-table-widget--display-table (car table) (cdr table)
-                                               window width))))))))
+                                               window width svg-state))))))))
 
 (defun org-table-widget--cancel-relayout ()
   "Cancel a pending relayout."
@@ -1105,11 +1408,21 @@ The table point is editing is left as source."
                                  (current-buffer))))))
 
 (defun org-table-widget--window-changed ()
-  "Schedule a relayout when the window width changed."
+  "Schedule a relayout when the window width or SVG origin changed."
   (let ((window (org-table-widget--window)))
     (when (and (window-live-p window)
-               (not (equal (org-table-widget--layout-width window)
-                           org-table-widget--width)))
+               (or (not (equal (org-table-widget--layout-width window)
+                               org-table-widget--width))
+                   (and (org-table-widget--svg-borders-p window)
+                        org-table-widget--overlays
+                        (not (equal
+                              (org-table-widget--window-origins)
+                              (plist-get
+                               (widget-get
+                                (overlay-get (car org-table-widget--overlays)
+                                             'org-table-widget)
+                                :svg-state)
+                               :origins))))))
       (org-table-widget--schedule-relayout))))
 
 ;;;; Sticky header
@@ -1179,6 +1492,8 @@ the table's columns, or else the header line the sticky header replaced."
 Otherwise restore the header line it replaced, so no empty header line
 is left behind.  WINDOW, when non-nil, is about to be displayed from
 START, as for `window-scroll-functions'."
+  (when (eq org-table-widget-border-style 'svg)
+    (org-table-widget--window-changed))
   (let ((installed (eq header-line-format
                        org-table-widget--sticky-header-format)))
     (if (and org-table-widget-mode
