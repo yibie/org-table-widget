@@ -6,7 +6,8 @@ buffers, powered by [TextUI](https://github.com/yibie/textui).
 - Align mixed CJK, Latin text, emoji and inline code using pixel widths.
 - Wrap long cells and reflow after window resizing or text scaling.
 - Preserve Org cell faces and links; support `<l>`, `<c>` and `<r>` alignment,
-  horizontal separators, Unicode/ASCII borders and alternating row backgrounds.
+  horizontal separators, Unicode/ASCII or SVG borders and alternating row
+  backgrounds.
 - Hide alignment and column-group declaration rows from the rendered table.
 
 Rendering uses overlays, leaving the source table intact for Org editing,
@@ -76,7 +77,8 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `org-table-widget-use-unicode-borders` | `t` | Use Unicode borders; nil selects ASCII. |
+| `org-table-widget-border-style` | `unicode` | Choose `unicode`, `ascii` or continuous `svg` borders. |
+| `org-table-widget-use-unicode-borders` | `t` | Legacy text-border choice, also used for SVG fallback. |
 | `org-table-widget-zebra-stripe` | `t` | Alternate data-row backgrounds. |
 | `org-table-widget-wrap-columns` | `t` | Wrap cell content; nil uses natural widths. |
 | `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window body width available to the table. |
@@ -84,6 +86,14 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 | `org-table-widget-reveal-on-point` | `nil` | Reveal source as soon as point enters a table, without `e`. |
 | `org-table-widget-sticky-header` | `t` | Keep a scrolled-off table header in the header line. |
 | `org-table-widget-cell-properties` | `(face font-lock-face invisible display mouse-face help-echo keymap follow-link htmlize-link org-emphasis)` | Text properties retained in rendered cells. |
+
+Set `org-table-widget-border-style` to `unicode`, `ascii` or `svg`. SVG keeps
+borders continuous with mixed fonts or extra line spacing. It falls back to
+text when SVG images or stippled backgrounds are unavailable, or windows showing
+the buffer use different border or row colors. The old
+`org-table-widget-use-unicode-borders` option still chooses the fallback; setting
+it to nil also keeps ASCII borders with the default `unicode` style.
+After changing faces, run `org-table-widget-refresh` to update SVG colors.
 
 ### Compatibility
 
@@ -115,7 +125,7 @@ rendering and reveals the source when it is time to edit.
 | Mixed-width text | Pixel-aligns CJK, Latin text, emoji and inline code inside a fixed-pitch table. | Pixel-aligns the table as displayed, including variable-pitch text, CJK and images. |
 | Narrow windows | Allocates columns within the window budget, wraps cell content and reflows after resizing. | Keeps cells on one source line at their natural width; it does not provide responsive cell wrapping. |
 | Alignment | Supports explicit `<l>`, `<c>` and `<r>` Org cookies, including centered cells. | Infers left or right alignment from the source layout; Markdown center alignment is treated as left alignment. |
-| Presentation | Draws complete Unicode or ASCII borders, styles header rows, supports horizontal rules and optional zebra striping. | Preserves the source table's shape, with an optional fancy vertical-bar style. |
+| Presentation | Draws complete Unicode, ASCII or SVG borders, styles header rows, supports horizontal rules and optional zebra striping. | Preserves the source table's shape, with an optional fancy vertical-bar style. |
 | Large tables | Caches measurements and unchanged renderings and has no fixed source-size cutoff. | Defaults to a fixed-pitch fallback for tables larger than 4,000 characters. |
 | Requirements | Emacs 29.1+, Org 9.6+ and TextUI 0.8.0+; currently installed from source or with `package-vc`. | Emacs 26+ with no extra package dependency; available from GNU ELPA. |
 
@@ -142,6 +152,8 @@ Known limitations:
   Overflow is truncated when `truncate-lines` is non-nil (the Org default), or
   wraps when nil; the widget does not change `truncate-lines`.
 - Numeric columns are not automatically right-aligned; use an explicit `<r>` cookie.
+- On SVG borders, Emacs may draw a hollow box instead of the chosen cursor
+  style, even when cursor blinking is disabled.
 - The sticky header slows scrolling through large tables, in both directions;
   set `org-table-widget-sticky-header` to nil to avoid it.
 - Coexistence with `valign` is untested; see above for `org-modern` test coverage.
