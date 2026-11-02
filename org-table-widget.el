@@ -74,6 +74,11 @@
 Otherwise use ASCII pipes, plus signs and dashes."
   :type 'boolean)
 
+(defcustom org-table-widget-enable-in-terminal nil
+  "When non-nil, render table widgets on text terminals as well.
+Otherwise tables on a terminal stay as editable Org source."
+  :type 'boolean)
+
 (defcustom org-table-widget-zebra-stripe t
   "When non-nil, give every second data row the zebra face."
   :type 'boolean)
@@ -1047,6 +1052,12 @@ non-nil."
                        (goto-char point)
                        (line-beginning-position))))))
 
+(defun org-table-widget--renderable-p (window)
+  "Return non-nil when widgets may be rendered in WINDOW."
+  (and (window-live-p window)
+       (or org-table-widget-enable-in-terminal
+           (display-graphic-p (window-frame window)))))
+
 (defun org-table-widget-refresh ()
   "Lay out every table in the current buffer as a widget.
 The table point is editing is left as source."
@@ -1054,7 +1065,7 @@ The table point is editing is left as source."
   (org-table-widget--cancel-relayout)
   (org-table-widget--clear)
   (let ((window (org-table-widget--window)))
-    (when (and (window-live-p window) (display-graphic-p (window-frame window)))
+    (when (org-table-widget--renderable-p window)
       (let ((width (org-table-widget--layout-width window))
             (point (point)))
         (save-excursion
@@ -1068,7 +1079,7 @@ The table point is editing is left as source."
 (defun org-table-widget--display-missing ()
   "Display widgets for tables that have none, except the one at point."
   (let ((window (org-table-widget--window)))
-    (when (and (window-live-p window) (display-graphic-p (window-frame window)))
+    (when (org-table-widget--renderable-p window)
       (let ((width (or org-table-widget--width
                        (org-table-widget--layout-width window)))
             (point (point)))

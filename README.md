@@ -21,9 +21,13 @@ Thanks to karthink for the fix and for explaining the multi-line preview edge ca
 ## Requirements
 
 Emacs **29.1+**, Org **9.6+**, [TextUI **0.8.0+**](https://github.com/yibie/textui),
-and a **graphical Emacs frame** for rendered widgets. In a terminal, the mode
-can be enabled, but automatic rendering is skipped and tables stay as editable
-Org source.
+and a **graphical Emacs frame** for rendered widgets by default. In a terminal,
+the mode can be enabled, but automatic rendering is skipped and tables stay as
+editable Org source unless `org-table-widget-enable-in-terminal` is non-nil.
+
+Terminal rendering is much slower to enable on large tables. After the terminal
+is resized, tables are laid out again on the next key press. Alignment of emoji
+rows may depend on the terminal emulator.
 
 ## Installation
 
@@ -77,6 +81,7 @@ Customize with `M-x customize-group RET org-table-widget RET`.
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `org-table-widget-use-unicode-borders` | `t` | Use Unicode borders; nil selects ASCII. |
+| `org-table-widget-enable-in-terminal` | `nil` | Render table widgets on text terminals as well. |
 | `org-table-widget-zebra-stripe` | `t` | Alternate data-row backgrounds. |
 | `org-table-widget-wrap-columns` | `t` | Wrap cell content; nil uses natural widths. |
 | `org-table-widget-max-width-fraction` | `1.0` | Fraction of the window body width available to the table. |

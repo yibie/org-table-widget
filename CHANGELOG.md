@@ -4,6 +4,9 @@
 
 ### Changes
 
+- Add `org-table-widget-enable-in-terminal` (default nil) to render table
+  widgets on text terminals. Enabling on large tables is much slower there than
+  in a graphical frame. Suggested by @hubisan (#7).
 - Keep a table's header visible while scrolling through the table. Once the
   header rows scroll out of view, the window's header line shows them, aligned
   with the columns below; set `org-table-widget-sticky-header` to nil to turn

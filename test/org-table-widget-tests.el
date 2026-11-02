@@ -476,6 +476,19 @@
             (should org-table-widget--inside-table))
         (org-table-widget-mode -1)))))
 
+(ert-deftest org-table-widget-terminal-rendering-follows-option ()
+  (require 'textui)
+  (org-table-widget-tests--with-org "Before\n| a | b |\n"
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (org-table-widget-tests--with-pixel-mocks
+        (cl-letf (((symbol-function 'display-graphic-p) (lambda (&rest _) nil)))
+          (goto-char (point-min))
+          (dolist (enabled '(nil t))
+            (let ((org-table-widget-enable-in-terminal enabled))
+              (org-table-widget-refresh)
+              (should (eq enabled (and org-table-widget--overlays t))))))))))
+
 (ert-deftest org-table-widget-edit-reveals-until-point-leaves ()
   (org-table-widget-tests--with-org "Before\n| a | b |\n| c | d |\nAfter\n"
     (save-window-excursion
