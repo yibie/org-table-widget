@@ -253,6 +253,49 @@
      ;; 20 chars = 200px + 20 padding; the token is never split.
      (should (= (nth 0 widths) 220)))))
 
+(ert-deftest org-table-widget-overlong-tokens-share-a-common-width ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((rows '(("supertag-node-delete" "generalizations" "Grade")))
+          (widths (org-table-widget--widths rows 3 440 10 nil)))
+     ;; The minimums (220 170 70) exceed the 400 px available.  The two
+     ;; widest are cut to one width; "Grade" keeps its token whole.
+     (should (equal widths '(165 165 70)))
+     (should (= (apply #'+ widths) 400)))))
+
+(ert-deftest org-table-widget-overlong-graphemes-keep-their-floor ()
+  (org-table-widget-tests--with-pixel-mocks
+   ;; 40 px cannot hold three 30 px columns of one grapheme each.
+   (should (equal (org-table-widget--widths '(("abc" "def" "ghi")) 3 80 10 nil)
+                  '(30 30 30)))))
+
+(defun org-table-widget-tests--line-pixels (line)
+  "Return the mocked pixel width of rendered LINE, pixel spaces included."
+  (let ((pixels 0))
+    (dotimes (index (length line))
+      (let ((display (get-text-property index 'display line)))
+        (setq pixels
+              (+ pixels
+                 (if (eq (car-safe display) 'space)
+                     (car (plist-get (cdr display) :width))
+                   (org-table-widget-tests--pixels
+                    (string (aref line index))))))))
+    pixels))
+
+(ert-deftest org-table-widget-overlong-tokens-stay-inside-the-window ()
+  (org-table-widget-tests--with-pixel-mocks
+   (let* ((table (list :rows '(("Category" "Grade value")
+                               hline
+                               ("*Generalizations*" "second-person pronouns"))
+                       :alignments '(left left)
+                       :header-rows 1))
+          (rendered (org-table-widget--render table nil 30)))
+     ;; The tokens claim 155 + 150 px and the borders 30: 335 px in a
+     ;; 300 px window.  Every line is the window's width, no more.
+     (dolist (line (split-string rendered "\n"))
+       (should (= (org-table-widget-tests--line-pixels line) 300)))
+     (should-not (string-match-p (regexp-quote "*Generalizations*")
+                                 (substring-no-properties rendered))))))
+
 (ert-deftest org-table-widget-right-alignment-pads-left ()
   (org-table-widget-tests--with-pixel-mocks
    (let* ((padded (org-table-widget--pad "7" 50 nil 'right)))

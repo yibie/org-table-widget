@@ -17,6 +17,11 @@
 
 ### Fixes
 
+- Keep a table inside the window when its longest words do not fit side by
+  side. Such a table was drawn wider than the window, so every row ran onto a
+  second screen line and the borders broke apart. The columns holding the
+  longest words are now narrowed to a common width and those words break
+  inside; while the words fit, nothing changes.
 - Let Evil's `gg` and `G` jump past tables. Evil reports these jumps as
   `next-line`, so the row stop meant for line motion caught them and left point
   on the table's first or last row. Only commands that move by a line now stop

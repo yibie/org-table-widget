@@ -439,6 +439,28 @@ zero-width and must stay attached."
 Without the cap a single huge cell takes nearly the whole table and
 starves the short columns down to one character per line.")
 
+(defun org-table-widget--fit-minimums (minimums floors available)
+  "Lower the widest of MINIMUMS until they sum to at most AVAILABLE.
+FLOORS holds the least width of each column.  The columns above a
+common width are cut down to it, so only those holding the longest
+unbreakable tokens break inside them.  When even FLOORS sum to more
+than AVAILABLE, return FLOORS."
+  (cl-flet ((clip (limit)
+              (seq-mapn (lambda (minimum floor)
+                          (max floor (min minimum limit)))
+                        minimums floors)))
+    (if (<= (apply #'+ minimums) available)
+        minimums
+      ;; The clipped total grows with the limit: find the largest that fits.
+      (let ((low 0)
+            (high (apply #'max minimums)))
+        (while (< low high)
+          (let ((middle (/ (+ low high 1) 2)))
+            (if (<= (apply #'+ (clip middle)) available)
+                (setq low middle)
+              (setq high (1- middle)))))
+        (clip low)))))
+
 (defun org-table-widget--widths (rows columns pixel-budget boundary-pixels
                                       window)
   "Allocate pixel widths for COLUMNS over ROWS in WINDOW.
@@ -447,18 +469,22 @@ PIXEL-BUDGET includes the BOUNDARY-PIXELS between columns.
 
 Each column claims a minimum (its widest grapheme, or its widest
 unbreakable token up to the cap) and a natural width (its widest
-cell).  When the natural widths do not fit, columns are settled at
-their natural width cheapest first: a column whose growth above its
-minimum fits either an equal share or its proportional share of the
-remaining space keeps its natural width, and the shares are
-recomputed after each one.  The remaining columns wrap regardless;
-they share what is left in proportion to their natural width above
-the minimum, capped so one giant cell cannot starve the others, and
-are rounded so the widths sum exactly to the available pixels."
+cell).  When the minimums alone do not fit, the widest are lowered to
+a common width, none below its widest grapheme, and their tokens
+break wherever the line is full.  When the natural widths do not fit,
+columns are settled at their natural width cheapest first: a column
+whose growth above its minimum fits either an equal share or its
+proportional share of the remaining space keeps its natural width,
+and the shares are recomputed after each one.  The remaining columns
+wrap regardless; they share what is left in proportion to their
+natural width above the minimum, capped so one giant cell cannot
+starve the others, and are rounded so the widths sum exactly to the
+available pixels."
   (let* ((space-pixels (org-table-widget--char-pixel-width window))
          (base-minimum (+ 1 (* 2 space-pixels)))
          (available (- pixel-budget (* (1+ columns) boundary-pixels)))
          (cap (floor (* org-table-widget--width-cap-fraction available)))
+         (floors (make-list columns base-minimum))
          (minimums (make-list columns base-minimum))
          (natural (make-list columns base-minimum)))
     (dolist (row rows)
@@ -481,11 +507,19 @@ are rounded so the widths sum exactly to the available pixels."
                       (setf (nth column natural)
                             (max (nth column natural)
                                  (+ (* 2 space-pixels) cell-pixels)))
+                      (setf (nth column floors)
+                            (max (nth column floors)
+                                 (+ (* 2 space-pixels) cluster-maximum)))
                       (setf (nth column minimums)
                             (max (nth column minimums)
                                  (+ (* 2 space-pixels)
                                     (max cluster-maximum
                                          (min token-maximum cap)))))))))
+    ;; Tokens too long for the window break inside rather than push the
+    ;; table past its edge, where every row would wrap onto a second line.
+    (when org-table-widget-wrap-columns
+      (setq minimums
+            (org-table-widget--fit-minimums minimums floors available)))
     (let ((natural-total (apply #'+ natural))
           (minimum-total (apply #'+ minimums)))
       (cond
