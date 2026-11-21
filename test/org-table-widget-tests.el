@@ -108,6 +108,41 @@
       (should-not (get-text-property 1 'line-prefix cell))
       (should-not (get-text-property 1 'fontified cell)))))
 
+(ert-deftest org-table-widget-cells-drop-min-width-display-specs ()
+  ;; `visual-wrap-prefix-mode' gives a row's fill prefix a `min-width'
+  ;; spec, which the cell must not keep; its other specs stay.
+  (skip-unless (fboundp 'remove-display-text-property))
+  (org-table-widget-tests--with-org "| *bold* | plain |\n"
+    (put-text-property 3 4 'display '((min-width ((3 . width))) (raise 0.1)))
+    (put-text-property 4 5 'display '(min-width ((3 . width))))
+    (let ((cell (car (car (plist-get (org-table-widget--parse (point-min)
+                                                               (point-max))
+                                     :rows)))))
+      (should (equal (get-text-property 0 'display cell) '((raise 0.1))))
+      (should-not (text-property-not-all 1 (length cell) 'display nil cell))
+      ;; The buffer's own property is left as it was.
+      (should (equal (get-text-property 3 'display)
+                     '((min-width ((3 . width))) (raise 0.1)))))))
+
+(ert-deftest org-table-widget-visual-wrap-prefix-does-not-widen-cells ()
+  ;; Issue #10: under `visual-wrap-prefix-mode', a first cell starting
+  ;; with an emphasis marker measured wider than it is drawn.  Only
+  ;; Emacs 31's mode puts a `min-width' spec on the line: Emacs 30's
+  ;; and 32's set only `wrap-prefix', and the test has nothing to check.
+  (skip-unless (and (fboundp 'remove-display-text-property)
+                    (require 'visual-wrap nil t)))
+  (org-table-widget-tests--with-org "| *Purpose/Thesis* | x |\n| Plain | z |\n"
+    (visual-wrap-prefix-function (point-min) (point-max))
+    (skip-unless (get-text-property 3 'display))
+    (save-window-excursion
+      (switch-to-buffer (current-buffer))
+      (let ((cell (car (car (plist-get (org-table-widget--parse (point-min)
+                                                                 (point-max))
+                                       :rows)))))
+        (should (= (org-table-widget--measure-string cell (selected-window))
+                   (org-table-widget--measure-string
+                    (substring-no-properties cell) (selected-window))))))))
+
 (ert-deftest org-table-widget-parse-empty-table-returns-nil ()
   (org-table-widget-tests--with-org "|---|\n"
     (should-not (org-table-widget--parse (point-min) (point-max)))))

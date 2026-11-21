@@ -779,7 +779,11 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
                     (cdr cells))))
 
 (defun org-table-widget--clean-cell (text)
-  "Return TEXT trimmed, keeping only `org-table-widget-cell-properties'."
+  "Return TEXT trimmed, keeping only `org-table-widget-cell-properties'.
+`min-width' display specs are dropped too.  `visual-wrap-prefix-mode'
+puts one on a line's fill prefix, such as \"| *\" before an emphasized
+first cell; kept, it widens the cell's measure but not its drawing, and
+the row comes out short."
   (let ((cell (string-trim text)))
     (let ((position 0)
           (length (length cell)))
@@ -792,6 +796,10 @@ PIXEL-BUDGET, when non-nil, overrides the column-derived pixel budget."
           (when drop
             (remove-list-of-text-properties position next drop cell))
           (setq position next))))
+    ;; Emacs 31.1 added this function, and the `min-width' spec to
+    ;; `visual-wrap-prefix-mode': earlier Emacsen have none to remove.
+    (when (fboundp 'remove-display-text-property)
+      (remove-display-text-property 0 (length cell) 'min-width cell))
     cell))
 
 (defun org-table-widget--line-cells ()

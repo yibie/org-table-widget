@@ -17,6 +17,11 @@
 
 ### Fixes
 
+- Line rows up under `visual-wrap-prefix-mode` on Emacs 31. The mode gives a
+  row's fill prefix, such as `| *` before an emphasized first cell, a
+  `min-width` display spec. The cell kept it and measured wider than it is
+  drawn, so the row came out short of the others. Cells now drop `min-width`
+  specs (#10).
 - Keep a table inside the window when its longest words do not fit side by
   side. Such a table was drawn wider than the window, so every row ran onto a
   second screen line and the borders broke apart. The columns holding the
